@@ -1,0 +1,83 @@
+"""
+Module for midpoint bisection
+"""
+
+from collections import namedtuple
+from typing import List, NamedTuple, Iterable, Iterator
+import random
+import numpy as np
+from itertools import cycle, islice
+
+class Point(NamedTuple):
+    x: float
+    y: float
+
+
+def main():
+    points = [
+        Point(0, 0),
+        Point(50, 50),
+        Point(65, 50),
+        Point(100, 0),
+    ]
+    new_points = midpoint_bisection(points, max_iterations=3)
+    print([int(p.y) for p in new_points])
+
+def pairs(elements: Iterable) -> Iterator:
+    """
+    returns the pairs of neighbouring elements in the iterable.
+    ```
+    pairs([1,2,3]) -> (1,2), (2,3)
+    """
+    previous = None
+    for i, obj in enumerate(elements):
+        if i != 0:
+            yield previous, obj
+        previous = obj
+
+def interlace(list1: List, list2: List) -> List:
+    """
+    Interlaces the two lists to create a new list.
+    
+    `interlace([a,b,c], [x,y,z]) -> [a,x,b,y,c,z]`
+    `interlace([a,b,c], [x,y]) -> [a,x,b,y,c]`
+    """
+    result = [None] * (len(list1) + len(list2))
+    result[::2] = list1
+    result[1::2] = list2
+    return result
+
+def midpoint_bisection(points: List[Point], max_iterations=4, iteration: int = 0) -> List[Point]:
+    """
+    """
+    def midpoint(point1: Point, point2: Point, displacement_range: float, iteration: int = 0) -> Point:
+        mean_y = (point1.y + point2.y) / 2
+        mean_x = (point1.x + point2.x) / 2
+
+        random_displacement = np.random.standard_normal() * displacement_range
+        random_displacement *= 2 ** (-iteration)
+        
+        return Point(
+            x = mean_x,
+            y = abs(mean_y + random_displacement),
+        )
+
+    displacement_range = (max(points, key=lambda p: p.y).y - min(points, key=lambda p: p.y).y) / 2
+    
+    def make_midpoints(points: List[Point], displacement_range: float, iteration: int) -> List[Point]:
+        """
+        Recursive function which actually makes the midpoints.
+        """
+        if iteration >= max_iterations:
+            return points
+        points_to_add = [
+            midpoint(p1, p2, displacement_range, iteration) for p1, p2 in pairs(points)
+        ]
+        result_points = interlace(points, points_to_add)
+        del points, points_to_add
+        return make_midpoints(result_points, displacement_range, iteration + 1)
+
+    return make_midpoints(points, displacement_range, 0)
+
+if __name__ == "__main__":
+    main()
