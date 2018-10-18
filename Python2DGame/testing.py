@@ -3,6 +3,7 @@ import numpy as np
 
 from midpoint_bisection import *
 import arcade
+import physics
 
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
@@ -14,6 +15,14 @@ MOUNTAIN_Y_MAX = SCREEN_HEIGHT / 2
 MOUNTAIN_Y_MIN = GROUND_Y
 MOUNTAIN_HEIGHT = MOUNTAIN_Y_MAX - MOUNTAIN_Y_MIN
 WALL_X = 0
+
+# class Ball(Particle):
+#     def __init__(self, position):
+#         super(position)
+#         position: Tuple[float, float]
+#         mass: float = 1
+
+
 class MyGame(arcade.Window):
     def __init__(self, width, height):
         super().__init__(width, height)
@@ -23,19 +32,23 @@ class MyGame(arcade.Window):
         self.turkeys = None
         self.mountain_points = [
             Point(MOUNTAIN_X_MIN, MOUNTAIN_Y_MIN),
-            Point(int(0.45 * (MOUNTAIN_X_MAX - MOUNTAIN_X_MIN) + MOUNTAIN_X_MIN), MOUNTAIN_Y_MAX),
-            Point(int(0.55 * (MOUNTAIN_X_MAX - MOUNTAIN_X_MIN) + MOUNTAIN_X_MIN), MOUNTAIN_Y_MAX),
+            Point(int(MOUNTAIN_X_MIN + 0.50 * (MOUNTAIN_WIDTH)), MOUNTAIN_Y_MAX),
             Point(MOUNTAIN_X_MAX, MOUNTAIN_Y_MIN),
         ]
         self.wall_points = [
             Point(WALL_X, GROUND_Y),
             Point(WALL_X, SCREEN_HEIGHT - 1),
         ]
+        self.particle_system: physics.ParticleSystem = None
+        self.ball = None
 
     def setup(self):
         # Create your sprites and sprite lists here
         self.mountain_points = midpoint_bisection(self.mountain_points, max_iterations=4)
         # print([int(p.y) for p in self.mountain_points])
+        self.particle_system = physics.ParticleSystem()
+        self.ball = physics.Particle((SCREEN_WIDTH / 2, SCREEN_HEIGHT - 1), mass=1.0)
+        self.particle_system.particles.append(self.ball)
 
     def on_draw(self):
         """
@@ -47,6 +60,7 @@ class MyGame(arcade.Window):
         self.draw_background()
         self.draw_mountain()
         self.draw_wall()
+        self.draw_ball()
         # Call draw() on all your sprite lists below
 
     def update(self, delta_time):
@@ -55,6 +69,7 @@ class MyGame(arcade.Window):
         Normally, you'll call update() on the sprite lists that
         need it.
         """
+        self.particle_system.time_step()
         pass
 
     def on_key_press(self, key, key_modifiers):
@@ -114,7 +129,12 @@ class MyGame(arcade.Window):
 
     def draw_wall(self):
         """Draws the wall on the left side of the screen."""
-        arcade.draw_line(self.wall_points[0], self.wall_points[1], arcade.color.BLACK, 10)
+        arcade.draw_line(*self.wall_points[0], *self.wall_points[1], arcade.color.BLACK, 10)
+
+    def draw_ball(self):
+        center_x = self.ball.curr_pos[0]
+        center_y = self.ball.curr_pos[1]
+        arcade.draw_circle_filled(center_x, center_y, 5.0, arcade.color.BLACK)
 
 def main():
     """ Main method """

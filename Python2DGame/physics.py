@@ -49,8 +49,8 @@ class StickConstraint():
 
 
 class ParticleSystem():
-    def __init__(self, particles: List[Particle]):
-        self.particles: List[Particle] = particles
+    def __init__(self):
+        self.particles: List[Particle] = []
         self.constraints: List[StickConstraint] = []
 
     def time_step(self) -> None:
@@ -110,7 +110,6 @@ class ParticleSystem():
                 #     diff = (delta_length-constraint)/delta_length
                 #     p.curr_pos -= delta*0.5*diff
                 #     attached_p.curr_pos += delta*0.5*diff
-
 
 def main():
     p1 = Particle([0, 11])
