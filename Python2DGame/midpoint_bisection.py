@@ -2,7 +2,6 @@
 Module for midpoint bisection
 """
 
-from collections import namedtuple
 from typing import List, NamedTuple, Iterable, Iterator
 import random
 import numpy as np
@@ -54,12 +53,12 @@ def midpoint_bisection(points: List[Point], max_iterations=4, iteration: int = 0
         mean_y = (point1.y + point2.y) / 2
         mean_x = (point1.x + point2.x) / 2
 
-        random_displacement = np.random.standard_normal() * displacement_range
+        random_displacement = np.random.normal(scale=0.25) * displacement_range
         random_displacement *= 2 ** (-iteration)
         
         return Point(
             x = mean_x,
-            y = abs(mean_y + random_displacement),
+            y = mean_y + random_displacement,
         )
 
     displacement_range = (max(points, key=lambda p: p.y).y - min(points, key=lambda p: p.y).y) / 2
