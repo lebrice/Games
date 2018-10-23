@@ -6,7 +6,7 @@ from typing import List, NamedTuple, Iterable, Iterator
 import random
 import numpy as np
 from itertools import cycle, islice
-
+from utils import pairs
 class Point(NamedTuple):
     x: float
     y: float
@@ -22,17 +22,6 @@ def main():
     new_points = midpoint_bisection(points, max_iterations=3)
     print(new_points[:,1])
 
-def pairs(elements: Iterable) -> Iterator:
-    """
-    returns the pairs of neighbouring elements in the iterable.
-    ```
-    pairs([1,2,3]) -> (1,2), (2,3)
-    """
-    previous = None
-    for i, obj in enumerate(elements):
-        if i != 0:
-            yield previous, obj
-        previous = obj
 
 def interlace(list1: List, list2: List) -> List:
     """

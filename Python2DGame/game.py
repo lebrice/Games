@@ -9,13 +9,16 @@ import arcade
 from enum import Enum
 # from testing import SCREEN_HEIGHT, SCREEN_WIDTH, GROUND_Y, WALL_X
 import collision_detection
+from collision_detection import circle_line_intersection
 from midpoint_bisection import midpoint_bisection, Point, pairs
 import arcade
 import random
 import os
 import math
 import os
-
+import turkey
+from turkey import TURKEY_RADIUS
+from utils import pairs
 FRAME_RATE = 30
 FRAME_TIME = 1.0 / FRAME_RATE
 
@@ -35,13 +38,21 @@ SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 GROUND_Y = SCREEN_HEIGHT / 6
 MOUNTAIN_WIDTH = SCREEN_WIDTH / 3
-MOUNTAIN_X_MIN = SCREEN_WIDTH / 3
-MOUNTAIN_X_MAX = MOUNTAIN_X_MIN + MOUNTAIN_WIDTH
-MOUNTAIN_Y_MAX = SCREEN_HEIGHT / 2
-MOUNTAIN_Y_MIN = GROUND_Y
-MOUNTAIN_HEIGHT = MOUNTAIN_Y_MAX - MOUNTAIN_Y_MIN
+# starting coordinates of the mountain, before midpoint bijection.
+MOUNTAIN_START_X = SCREEN_WIDTH / 3
+MOUNTAIN_START_Y = SCREEN_HEIGHT / 2
+MOUNTAIN_END_X = MOUNTAIN_START_X + MOUNTAIN_WIDTH
+MOUNTAIN_END_Y = GROUND_Y
+MOUNTAIN_HEIGHT = MOUNTAIN_END_Y - MOUNTAIN_END_Y
 WALL_X = 0
-
+mountain_base_points = [
+    (MOUNTAIN_START_X, GROUND_Y),
+    (MOUNTAIN_START_X + MOUNTAIN_WIDTH // 2, SCREEN_HEIGHT // 2),
+    (MOUNTAIN_END_X, GROUND_Y),
+]
+mountain_points = midpoint_bisection(mountain_base_points, max_iterations=4)
+MOUNTAIN_X_MAX, MOUNTAIN_Y_MAX = np.max(mountain_points, axis=0)
+MOUNTAIN_X_MIN, MOUNTAIN_Y_MIN = np.min(mountain_points, axis=0)
 CANNON_X = SCREEN_WIDTH * 7/8
 CANNON_Y = GROUND_Y + 10
 CLOUD_Y = (7/8) * SCREEN_HEIGHT
@@ -50,38 +61,53 @@ WIND_START_Y: int = MOUNTAIN_Y_MAX
 
 
 class MyGame(arcade.Window):
+    # Frame counter.
+    i: int
+
     def __init__(self, width, height):
         super().__init__(width, height)
-
+        MyGame.i = 0
         # If you have sprite lists, you should create them here,
         # and set them to None
-        self.mountain_points = [
-            (MOUNTAIN_X_MIN, MOUNTAIN_Y_MIN),
-            (int(MOUNTAIN_X_MIN + 0.50 * (MOUNTAIN_WIDTH)), MOUNTAIN_Y_MAX),
-            (MOUNTAIN_X_MAX, MOUNTAIN_Y_MIN),
-        ]
         self.wall_points = [
             (WALL_X, GROUND_Y),
             (WALL_X, SCREEN_HEIGHT - 1),
         ]
-        self.turkeys = None
+        self.turkeys: List[arcade.ShapeElementList] = []
         self.particle_system: ParticleSystem = None
         self.ball = None
         self.clouds: arcade.SpriteList = None
         self.cannon_angle: float = 0.
+        self.mountain: arcade.ShapeElementList = None
 
     def setup(self):
         # Create your sprites and sprite lists here
-        self.mountain_points = midpoint_bisection(
-            self.mountain_points, max_iterations=4)
-        # self.mountain_vertices = arcade.ShapeElementList()
-        # self.mountain_vertices.append(self.mountain_points)
-        print(self.mountain_points[:, 1])
+        self.create_mountain()
         self.particle_system = ParticleSystem()
-        self.particle_system.mountain_points = self.mountain_points
+        self.particle_system.mountain_points = mountain_points
         self.clouds = arcade.SpriteList()
         self.clouds.append(Cloud((SCREEN_WIDTH / 2, SCREEN_HEIGHT * 2/3)))
         self.clouds.append(Cloud((SCREEN_WIDTH / 3, SCREEN_HEIGHT * 3/4)))
+        self.turkeys.append(turkey.create_turkey())
+        self.turkeys[0].move(100, 100)
+
+    def create_mountain(self) -> None:
+        """
+        Creates the Mountain.
+        """
+        self.mountain = arcade.ShapeElementList()
+        for p1, p2 in pairs(mountain_points):
+            bottom_left = (p1[0], GROUND_Y)
+            bottom_right = (p2[0], GROUND_Y)
+            points_list = [
+                bottom_left,
+                p1,
+                p2,
+                bottom_right,
+            ]
+            # each "segment" of the mountain is a convex polygon.
+            self.mountain.append(arcade.create_polygon(
+                points_list, arcade.color.BROWN_NOSE))
 
     def on_draw(self):
         """
@@ -96,6 +122,7 @@ class MyGame(arcade.Window):
         self.draw_ball()
         self.clouds.draw()
         self.draw_cannon()
+        self.draw_turkeys()
         # Call draw() on all your sprite lists below
 
     def update(self, delta_time):
@@ -106,6 +133,8 @@ class MyGame(arcade.Window):
         """
         self.clouds.update()
         self.particle_system.time_step()
+        self.move_turkeys()
+        MyGame.i += 1
         pass
 
     def on_key_press(self, key, key_modifiers):
@@ -161,12 +190,44 @@ class MyGame(arcade.Window):
                                      SCREEN_WIDTH - 1, SCREEN_HEIGHT - GROUND_Y,
                                      arcade.color.SKY_BLUE)
 
+    def draw_turkeys(self) -> None:
+        """
+        Draws the turkeys.
+        """
+        for turkey in self.turkeys:
+            turkey.draw()
+
+    turkey_speeds: List[float] = []
+    max_turkey_speed: float = 2.0
+
+    def move_turkeys(self) -> None:
+        """
+        moves the turkeys a little bit at random.
+        """
+        def random_speed():
+            return np.random.uniform(MyGame.max_turkey_speed, MyGame.max_turkey_speed)
+
+        for index, turkey in enumerate(self.turkeys):
+            if len(MyGame.turkey_speeds) <= index:
+                MyGame.turkey_speeds.append(random_speed())
+            elif MyGame.i % random.randint(1, 3 * FRAME_RATE) == 0:
+                MyGame.turkey_speeds[index] = random_speed()
+            # TODO: only move the turkeys like this if they are below the wind ?
+            if turkey.center_x - TURKEY_RADIUS <= WALL_X:
+                # we want to force the turkey to move right
+                MyGame.turkey_speeds[index] = abs(MyGame.turkey_speeds[index])
+            elif turkey.center_x + TURKEY_RADIUS >= MOUNTAIN_X_MIN:
+                # we want to force the turkey to move left
+                MyGame.turkey_speeds[index] *= - \
+                    abs(MyGame.turkey_speeds[index])
+            turkey.move(MyGame.turkey_speeds[index], 0)
+
     def draw_mountain(self):
         """
         draws the mountain
         """
-        arcade.draw_polygon_filled(
-            self.mountain_points, arcade.color.BROWN_NOSE)
+        self.mountain.draw()
+        # arcade.draw_polygon_filled(self.mountain_points, arcade.color.BROWN_NOSE)
         # for p1, p2 in pairs(self.mountain_points):
         # arcade.draw_line(p1.x, p1.y, p2.x, p2.y, arcade.color.BLACK, 3)
         # arcade.draw_polygon_filled()
@@ -189,7 +250,7 @@ class MyGame(arcade.Window):
 
     def fire_cannonball(self) -> None:
         if self.ball is not None:
-            self.particle_system.particles.remove(self.ball)
+            self.particle_system.balls.remove(self.ball)
             del self.ball
         print("Firing a new cannonball!")
         print("Cannon angle:", self.cannon_angle)
@@ -201,7 +262,7 @@ class MyGame(arcade.Window):
         velocity = (x_component, y_component)
         print(velocity)
         self.ball = Ball((CANNON_X, CANNON_Y), velocity)
-        self.particle_system.particles.append(self.ball)
+        self.particle_system.balls.append(self.ball)
 
 
 class ParticleType(Enum):
@@ -270,11 +331,6 @@ class Cloud(arcade.Sprite):
         if self.left > SCREEN_WIDTH - 1:
             self.left = - self.width
 
-        # if self.left < 0:
-        #     self.left = 0
-        # elif self.right > SCREEN_WIDTH - 1:
-        #     self.right = SCREEN_WIDTH - 1
-
 
 class Ball(Particle):
     mass: float = 1.0
@@ -301,22 +357,24 @@ class StickConstraint(NamedTuple):
     p2: Particle
     rest_length: float
 
+
 class RigidBody():
     # TODO: this might be useful to define a Turkey.
     particles: List[Particle]
     stick_constraints: List[StickConstraint]
 
+
 class ParticleSystem():
     # changing the wind every 2 seconds. (0.5 seconds is a bit too fast!)
     wind_change_interval: int = FRAME_RATE * 2
     max_wind_speed: float = 15
-    wind_speed: float = 0
+    wind_speed: float = 5
 
     def __init__(self):
-        self.particles: List[Particle] = []
-        self.constraints: List[StickConstraint] = []
+        self.balls: List[Ball] = []
+        self.turkeys: List[turkey.Turkey] = []
 
-        self.mountain_points: List[Point] = []
+        self.mountain_points: List[Point] = mountain_points
 
         # counter for the number of frames.
         self._i: int = 0
@@ -325,14 +383,14 @@ class ParticleSystem():
         self.accumulate_forces()
         self.verlet()
         self.satisfy_constraints()
-        if self._i % ParticleSystem.wind_change_interval == 0:
-            ParticleSystem.wind_speed = random.uniform(
-                -ParticleSystem.max_wind_speed, ParticleSystem.max_wind_speed)
-            print("Wind speed changed to ", ParticleSystem.wind_speed)
+        # if self._i % ParticleSystem.wind_change_interval == 0:
+        #     ParticleSystem.wind_speed = random.uniform(
+        #         -ParticleSystem.max_wind_speed, ParticleSystem.max_wind_speed)
+        #     print("Wind speed changed to ", ParticleSystem.wind_speed)
         self._i += 1
 
     def verlet(self) -> None:
-        for p in filter(lambda p: p.can_move, self.particles):
+        for p in filter(lambda p: p.can_move, self.balls):
             temp = np.copy(p.curr_pos)
             p.curr_pos += (p.curr_pos - p.prev_pos) + \
                 p.acceleration * FRAME_TIME * FRAME_TIME
@@ -340,7 +398,7 @@ class ParticleSystem():
 
     def accumulate_forces(self) -> None:
         p: Particle
-        for p in filter(lambda p: p.can_move, self.particles):
+        for p in filter(lambda p: p.can_move, self.balls):
             if p.particle_type == ParticleType.ball:
                 if p.curr_pos[1] >= WIND_START_Y:
                     p.acceleration = np.asarray(
@@ -348,88 +406,87 @@ class ParticleSystem():
                 else:
                     p.acceleration = np.asarray((0.0, GRAVITY))
 
+    NUM_ITERATIONS: float = 1
+
     def satisfy_constraints(self) -> None:
-        for i in range(NUM_ITERATIONS):
-            p: Particle
-            for p in filter(lambda p: p.can_move, self.particles):
-                if p.particle_type == ParticleType.ball:
-                    ball: Ball = p
-                    # if the ball hits the ground, it is dead.
-                    if (ball.curr_pos[1] - Ball.radius) <= GROUND_Y:
-                        print("Ball collided with the ground!")
-                        ball.can_move = False
+        for i in range(ParticleSystem.NUM_ITERATIONS):
+            for ball in filter(lambda ball: ball.can_move, self.balls):
+                # if the ball hits the ground, it is dead.
+                if (ball.curr_pos[1] - Ball.radius) <= GROUND_Y:
+                    print("Ball collided with the ground!")
+                    ball.can_move = False
+                    continue
+
+                if ball.might_collide_with_wall():
+                    p1 = np.asarray((WALL_X, GROUND_Y))
+                    p2 = np.asarray((WALL_X, SCREEN_HEIGHT - 1))
+                    collision, wall_p, penetration_distance = circle_line_intersection(
+                        ball.curr_pos, Ball.radius, p1, p2)
+                    if collision:
+                        print("Ball Collided with the wall!")
+                        print(collision, wall_p, penetration_distance)
+                        velocity = ball.curr_pos - ball.prev_pos
+                        restitution_coefficient: float = 0.95
+                        # Only the x-component of the velocity is changed (since the wall is vertical)
+                        velocity[0] *= -1 * restitution_coefficient
+                        # get the ball out of the wall by sliding it to the right.
+                        ball.curr_pos[0] += penetration_distance
+                        # set the ball's velocity.
+                        ball.prev_pos = ball.curr_pos - velocity
+                        # can't possibly collide with anything else at the same time.
                         continue
 
-                    if ball.might_collide_with_wall():
-                        print("ball might collide with wall!")
-                        p1 = np.asarray((WALL_X, GROUND_Y))
-                        p2 = np.asarray((WALL_X, SCREEN_HEIGHT - 1))
-                        collision, wall_p, penetration_distance = collision_detection.circle_line_intersection(
-                            ball.curr_pos, Ball.radius, p1, p2)
-                        if collision:
-                            print("COLLISION DETECTED!")
-                            print(collision, wall_p, penetration_distance)
+                elif ball.might_collide_with_mountain():
+                    # check if the ball collidies with a line of the mountain.
+                    for p0, p1 in pairs(self.mountain_points):
+                        result = collision_detection.circle_line_intersection(
+                            ball.curr_pos, Ball.radius, p0, p1)
+                        collision, mountain_p, penetration_dist = result
+                        if not collision:
                             continue
+                        print("Ball Collided with the mountain!")
+                        print(mountain_p, penetration_dist)
 
-                    elif ball.might_collide_with_mountain():
-                        print("ball might collide with the mountain!")
-                        # check if the ball collidies with a line of the mountain.
-                        for p0, p1 in pairs(self.mountain_points):
-                            collision, mountain_p, penetration_dist = collision_detection.circle_line_intersection(
-                                ball.curr_pos, Ball.radius, p0, p1)
-                            if not collision:
-                                continue
-                            else:
-                                print("COLLISION DETECTED!!")
-                                print(mountain_p, penetration_dist)
+                        restitution_coefficient: float = 0.50
+                        # the mountain segment is the tangential vector to the collision.
+                        tangential = p1 - p0
+                        tangential /= np.linalg.norm(tangential)
+                        # the normal is perpendicular to the mountain segment.
+                        # TODO: we want the upward-pointing normal, does this matter ?
+                        normal = np.asarray((-tangential[1], tangential[0]), float)
 
-                                restitution_coefficient: float = 0.50
-                                # TODO: figure out how to do the collision resolution.
-                                # the vector from one mountain point to the next
-                                line_vector = p1 - p0
-                                normal = (-line_vector[1], line_vector[0])
-                                unit_normal = normal / np.linalg.norm(normal)
-                                unit_tangential = line_vector / np.linalg.norm(line_vector)
-
-                                velocity = ball.curr_pos - ball.prev_pos
-                                velocity_norm = np.linalg.norm(velocity)
-                                unit_velocity = velocity / np.linalg.norm(velocity)
-
-                                tangential_component = np.dot(velocity, unit_tangential)
-                                normal_component = np.dot(velocity, unit_normal)
-                                print("unit velocity", unit_velocity)
-                                print("velocity magnitude", velocity_norm)
-                                print("unit normal vector to collision: ", unit_normal)
-                                print("unit tangent vector to collision: ", unit_tangential)
-                                print("tangential_component:", tangential_component)
-                                print("normal_component:", normal_component)
+                        # move the ball out of the mountain.
+                        ball.curr_pos += normal * penetration_dist
+                        
 
 
-                                normal_component *= -1 * restitution_coefficient
+                        velocity = ball.curr_pos - ball.prev_pos
 
-                                new_velocity = tangential_component * unit_tangential + normal_component * unit_normal
+                        v_tangent = np.dot(velocity, tangential)
+                        v_normal = np.dot(velocity, normal)
 
-                                ball.curr_pos += penetration_dist * unit_normal
-                                ball.prev_pos = ball.curr_pos - new_velocity
-                                # ball.prev_pos = mountain_p
+                        # inelastic collision: the normal component is reversed.
+                        v_normal *= -1 * restitution_coefficient
+                        new_velocity = v_tangent * tangential + v_normal * normal
+                        # set the ball's velocity
+                        ball.prev_pos = ball.curr_pos - new_velocity
 
-                                delta = ball.curr_pos - mountain_p
-                                print("Delta: ", delta)
-                                print(ball)
-                                # img = arcade.get_image()
-                                # img.save("./collision.png")
-                                # exit()
-                                break
+                        # delta = ball.curr_pos - mountain_p
+                        # print("Delta: ", delta)
+                        # print(ball)
+                        # img = arcade.get_image()
+                        # img.save("./collision.png")
+                        # exit()
+                        break
 
-                                # exit(0)
+                # constrain #1: the particles have to stay within the area.
+                min_constraint = (0, GROUND_Y)
+                max_constraint = (SCREEN_WIDTH, SCREEN_HEIGHT)
+                ball.curr_pos = np.max([ball.curr_pos, min_constraint], axis=0)
+                ball.curr_pos = np.min([ball.curr_pos, max_constraint], axis=0)
 
-                    # constrain #1: the particles have to stay within the area.
-                    min_constraint = (0, GROUND_Y)
-                    max_constraint = (SCREEN_WIDTH, SCREEN_HEIGHT)
-                    p.curr_pos = np.max([p.curr_pos, min_constraint], axis=0)
-                    p.curr_pos = np.min([p.curr_pos, max_constraint], axis=0)
-
-            for c in self.constraints:
+            for c in self.turkeys:
+                pass
                 # Pseudo-code for satisfying (C2) using sqrt approximation
                 # rest_length = c.length
                 # delta = c.p2.curr_pos - c.p1.curr_pos
@@ -437,18 +494,18 @@ class ParticleSystem():
                 # c.p1.curr_pos -= delta
                 # c.p2.curr_pos += delta
 
-                if c.p1.inv_mass == 0 and c.p2.inv_mass == 0:
-                    # the two particles are immovable.
-                    continue
+                # if c.p1.inv_mass == 0 and c.p2.inv_mass == 0:
+                #     # the two particles are immovable.
+                #     continue
 
-                # Pseudo-code to satisfy (C2) while taking mass into account.
-                p1, p2 = c.p1, c.p2
-                delta = p2.curr_pos - p1.curr_pos
-                deltalength = np.sqrt(np.dot(delta, delta))
-                diff = (deltalength - c.rest_length)
-                diff /= (deltalength * (p1.inv_mass + p2.inv_mass))
-                p1.curr_pos -= p1.inv_mass * delta * diff
-                p2.curr_pos += p2.inv_mass * delta * diff
+                # # Pseudo-code to satisfy (C2) while taking mass into account.
+                # p1, p2 = c.p1, c.p2
+                # delta = p2.curr_pos - p1.curr_pos
+                # deltalength = np.sqrt(np.dot(delta, delta))
+                # diff = (deltalength - c.rest_length)
+                # diff /= (deltalength * (p1.inv_mass + p2.inv_mass))
+                # p1.curr_pos -= p1.inv_mass * delta * diff
+                # p2.curr_pos += p2.inv_mass * delta * diff
 
                 # for attached_p, constraint in p.attached_particles.items():
                 #     # Pseudo-code to satisfy (C2)
