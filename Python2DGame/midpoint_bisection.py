@@ -50,10 +50,10 @@ def midpoint_bisection(points: List[Point], max_iterations=4, iteration: int = 0
     """
     """
     def midpoint(point1: Point, point2: Point, displacement_range: float, iteration: int = 0) -> Point:
-        mean_y = (point1.y + point2.y) / 2
-        mean_x = (point1.x + point2.x) / 2
+        mean_y = (point1[1] + point2[1]) / 2
+        mean_x = (point1[0] + point2[0]) / 2
 
-        random_displacement = np.random.normal(scale=0.25) * displacement_range
+        random_displacement = np.random.normal(scale=0.5) * displacement_range
         random_displacement *= 2 ** (-iteration)
         
         return Point(

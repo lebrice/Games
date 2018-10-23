@@ -17,7 +17,8 @@ def circle_line_intersection(
         p1: Point,
     ) -> Tuple[bool, Point, float]:
     """
-    Determines if there is an intersection between the circle and the line, and there is one, returns the intersection point.
+    Determines if there is an intersection between the circle and the line, and there is one, returns the intersection point and the penetration distance.
+
     In the case where there is two intersection points, returns the point on the line which is closest to the circle's center.
     """
     center = np.asarray(center, dtype=float)
@@ -41,7 +42,7 @@ def circle_line_intersection(
     intersect = intersection.centroid
     intersect = Point(round(intersect.x, 4), round(intersect.y, 4))
 
-    return True, intersect, intersect.distance(center)
+    return True, intersect, radius - intersect.distance(center)
 
 def line_line_intersection(p0, p1, p2, p3) -> Tuple[bool, Point]:
     """

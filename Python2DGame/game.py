@@ -9,7 +9,7 @@ import arcade
 from enum import Enum
 # from testing import SCREEN_HEIGHT, SCREEN_WIDTH, GROUND_Y, WALL_X
 import collision_detection
-from midpoint_bisection import midpoint_bisection, Point
+from midpoint_bisection import midpoint_bisection, Point, pairs
 import arcade
 import random
 import os
@@ -46,8 +46,10 @@ CANNON_X = SCREEN_WIDTH * 7/8
 CANNON_Y = GROUND_Y + 10
 CLOUD_Y = (7/8) * SCREEN_HEIGHT
 
-
 WIND_START_Y: int = MOUNTAIN_Y_MAX
+
+
+
 
 class MyGame(arcade.Window):
     def __init__(self, width, height):
@@ -75,7 +77,7 @@ class MyGame(arcade.Window):
         self.mountain_points = midpoint_bisection(self.mountain_points, max_iterations=4)
         print([int(p.y) for p in self.mountain_points])
         self.particle_system = ParticleSystem()
-        
+        self.particle_system.mountain_points = self.mountain_points
         self.clouds = arcade.SpriteList()
         self.clouds.append(Cloud((SCREEN_WIDTH / 2, SCREEN_HEIGHT * 2/3)))
         self.clouds.append(Cloud((SCREEN_WIDTH / 3, SCREEN_HEIGHT * 3/4)))       
@@ -222,6 +224,7 @@ class Particle():
         self.attached_particles: Dict[Particle, float] = dict()
         self.inv_mass = 0 if mass == 0 else 1.0/mass
         self.particle_type: ParticleType = p_type
+        self.can_move : bool = True
 
     def __repr__(self) -> str:
         string = "ID: " + str(self.particle_id) + "\t"
@@ -237,10 +240,6 @@ class Particle():
         # on the other side.
         if self not in other_particle.attached_particles:
             other_particle.attached_particles[self] = constraint
-
-    def get_forces(self) -> Tuple[float, float]:
-        return (0.0, 0.0)
-
 
 class Cloud(arcade.Sprite):
     filename: str = os.path.join("images", "cloud_sprite.png")
@@ -280,6 +279,14 @@ class Ball(Particle):
         # setting the "velocity" by changing the previous position.
         self.prev_pos = self.curr_pos - FRAME_TIME * np.asarray(velocity, float)
 
+    def might_collide_with_wall(self) -> bool:
+        return (self.curr_pos[0] - Ball.radius) - WALL_X < 5
+
+    def might_collide_with_mountain(self) -> bool:
+        ball_x, ball_y = self.curr_pos
+        radius = Ball.radius
+        return MOUNTAIN_X_MIN <= (ball_x + radius) and (ball_x - radius) <= MOUNTAIN_X_MAX \
+            and MOUNTAIN_Y_MIN <=(ball_y + radius) and (ball_y - radius) <= MOUNTAIN_Y_MAX
 
 
 class StickConstraint(NamedTuple):
@@ -296,6 +303,9 @@ class ParticleSystem():
     def __init__(self):
         self.particles: List[Particle] = []
         self.constraints: List[StickConstraint] = []
+
+        self.mountain_points : List[Point] = []
+
         # counter for the number of frames.
         self._i: int = 0
 
@@ -309,41 +319,73 @@ class ParticleSystem():
         self._i += 1
 
     def verlet(self) -> None:
-        for p in self.particles:
+        for p in filter(lambda p: p.can_move, self.particles):
             temp = np.copy(p.curr_pos)
             p.curr_pos += (p.curr_pos - p.prev_pos) + p.acceleration * FRAME_TIME * FRAME_TIME
             p.prev_pos = temp
 
-
     def accumulate_forces(self) -> None:
         p: Particle
-        for p in self.particles:
+        for p in filter(lambda p: p.can_move, self.particles):
             if p.particle_type == ParticleType.ball:
                 if p.curr_pos[1] >= WIND_START_Y:
                     p.acceleration = np.asarray((ParticleSystem.wind_speed, GRAVITY))
                 else:
                     p.acceleration = np.asarray((0.0, GRAVITY))
-
-    def ball_might_collide_with_wall(self, ball: Ball) -> bool:
-        return (ball.curr_pos[0] - Ball.radius) - WALL_X < 5
-
-    def ball_might_collide_with_mountain(self, ball: Ball) -> bool:
-        ball_x, ball_y = ball.curr_pos
-        radius = Ball.radius
-        return MOUNTAIN_X_MIN <= (ball_x + radius) and (ball_x - radius) <= MOUNTAIN_X_MAX \
-            and MOUNTAIN_Y_MIN <=(ball_y + radius) and (ball_y - radius) <= MOUNTAIN_Y_MAX
-
-
     def satisfy_constraints(self) -> None:
         for i in range(NUM_ITERATIONS):
             p: Particle
-            for p in self.particles:
+            for p in filter(lambda p: p.can_move, self.particles):
                 if p.particle_type == ParticleType.ball:
-                    if self.ball_might_collide_with_wall(p):
+                    ball: Ball = p
+                    # if the ball hits the ground, it is dead.
+                    if (ball.curr_pos[1] - Ball.radius) <= GROUND_Y:
+                        print("Ball collided with the ground!")
+                        ball.can_move = False
+                        continue
+
+                    if ball.might_collide_with_wall():
                         print("ball might collide with wall!")
-                        wall_point, ball_point = collision_detection.circle_line_intersection(p.curr_pos, Ball.radius)
-                    elif self.ball_might_collide_with_mountain(p):
-                        print("ball might collide with mountain!")
+                        p1 = np.asarray((WALL_X, GROUND_Y))
+                        p2 = np.asarray((WALL_X, SCREEN_HEIGHT - 1))
+                        collision, wall_p, penetration_distance = collision_detection.circle_line_intersection(ball.curr_pos, Ball.radius, p1, p2)
+                        if collision:
+                            print("COLLISION DETECTED!")
+                            print(collision, wall_p, penetration_distance)
+                            continue
+
+                    elif ball.might_collide_with_mountain():
+                        print("ball might collide with the mountain!")
+                        # check if the ball collidies with a line of the mountain.
+                        for p0, p1 in pairs(self.mountain_points):
+                            collision, mountain_p, penetration_dist = collision_detection.circle_line_intersection(ball.curr_pos, Ball.radius, p0, p1)
+                            if not collision:
+                                continue
+                            else:
+                                print("COLLISION DETECTED!!")
+                                print(mountain_p, penetration_dist)
+                                
+                                restitution_coefficient: float = 1.0
+                                # TODO: figure out how to do the collision resolution.
+                                # the vector from one mountain point to the next
+                                line_vector = p1 - p0
+                                # the normal to that vector
+                                normal = (-line_vector[1], line_vector[0])
+                                
+                                current_velocity = ball.curr_pos - ball.prev_pos
+                                new_velocity =
+                                ball.prev_pos = ball.curr_pos - new_velocity
+                                # ball.prev_pos = mountain_p
+                                
+                                delta = ball.curr_pos - mountain_p
+                                print(delta)
+                                print(ball)
+                                img = arcade.get_image()
+                                img.save("./collision.png")
+                                break
+                                                               
+                                
+                                # exit(0)
 
                     # constrain #1: the particles have to stay within the area.
                     min_constraint = (0, GROUND_Y)
