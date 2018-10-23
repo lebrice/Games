@@ -1,23 +1,18 @@
 import arcade
 import numpy as np
 from typing import NamedTuple, List, Tuple, Set, Dict
-from midpoint_bisection import Point
 import numpy as np
 import random
 import os
 import arcade
+import math
 from enum import Enum
-# from testing import SCREEN_HEIGHT, SCREEN_WIDTH, GROUND_Y, WALL_X
 import collision_detection
 from collision_detection import circle_line_intersection
-from midpoint_bisection import midpoint_bisection, Point, pairs
-import arcade
-import random
-import os
-import math
-import os
+from midpoint_bisection import midpoint_bisection
 import turkey
-from turkey import TURKEY_RADIUS
+
+# from turkey import Turkey
 from utils import pairs
 FRAME_RATE = 30
 FRAME_TIME = 1.0 / FRAME_RATE
@@ -59,6 +54,20 @@ CLOUD_Y = (7/8) * SCREEN_HEIGHT
 
 WIND_START_Y: int = MOUNTAIN_Y_MAX
 
+class Mountain(arcade.ShapeElementList):
+    def __init__(self):
+        super().__init__()
+        for p1, p2 in pairs(mountain_points):
+            bottom_left = (p1[0], GROUND_Y)
+            bottom_right = (p2[0], GROUND_Y)
+            points_list = [
+                bottom_left,
+                p1,
+                p2,
+                bottom_right,
+            ]
+            # each "segment" of the mountain is a convex polygon.
+            self.append(arcade.create_polygon(points_list, arcade.color.BROWN_NOSE))
 
 class MyGame(arcade.Window):
     # Frame counter.
@@ -78,36 +87,18 @@ class MyGame(arcade.Window):
         self.ball = None
         self.clouds: arcade.SpriteList = None
         self.cannon_angle: float = 0.
-        self.mountain: arcade.ShapeElementList = None
+        self.mountain: Mountain = None
 
     def setup(self):
         # Create your sprites and sprite lists here
-        self.create_mountain()
+        self.mountain = Mountain()
         self.particle_system = ParticleSystem()
         self.particle_system.mountain_points = mountain_points
         self.clouds = arcade.SpriteList()
         self.clouds.append(Cloud((SCREEN_WIDTH / 2, SCREEN_HEIGHT * 2/3)))
         self.clouds.append(Cloud((SCREEN_WIDTH / 3, SCREEN_HEIGHT * 3/4)))
-        self.turkeys.append(turkey.create_turkey())
+        self.turkeys.append(turkey.Turkey())
         self.turkeys[0].move(100, 100)
-
-    def create_mountain(self) -> None:
-        """
-        Creates the Mountain.
-        """
-        self.mountain = arcade.ShapeElementList()
-        for p1, p2 in pairs(mountain_points):
-            bottom_left = (p1[0], GROUND_Y)
-            bottom_right = (p2[0], GROUND_Y)
-            points_list = [
-                bottom_left,
-                p1,
-                p2,
-                bottom_right,
-            ]
-            # each "segment" of the mountain is a convex polygon.
-            self.mountain.append(arcade.create_polygon(
-                points_list, arcade.color.BROWN_NOSE))
 
     def on_draw(self):
         """
@@ -117,9 +108,10 @@ class MyGame(arcade.Window):
         # the screen to the background color, and erase what we drew last frame.
         arcade.start_render()
         self.draw_background()
-        self.draw_mountain()
+        self.mountain.draw()
         self.draw_wall()
-        self.draw_ball()
+        if self.ball:
+            self.ball.draw()
         self.clouds.draw()
         self.draw_cannon()
         self.draw_turkeys()
@@ -197,52 +189,30 @@ class MyGame(arcade.Window):
         for turkey in self.turkeys:
             turkey.draw()
 
-    turkey_speeds: List[float] = []
-    max_turkey_speed: float = 2.0
-
     def move_turkeys(self) -> None:
         """
         moves the turkeys a little bit at random.
         """
         def random_speed():
-            return np.random.uniform(MyGame.max_turkey_speed, MyGame.max_turkey_speed)
+            return np.random.uniform(turkey.Turkey.max_pacing_speed, turkey.Turkey.max_pacing_speed)
 
-        for index, turkey in enumerate(self.turkeys):
-            if len(MyGame.turkey_speeds) <= index:
-                MyGame.turkey_speeds.append(random_speed())
-            elif MyGame.i % random.randint(1, 3 * FRAME_RATE) == 0:
-                MyGame.turkey_speeds[index] = random_speed()
+        for t in self.turkeys:
+            if MyGame.i % random.randint(1, 3 * FRAME_RATE) == 0:
+                t.pacing_speed = random_speed()
             # TODO: only move the turkeys like this if they are below the wind ?
-            if turkey.center_x - TURKEY_RADIUS <= WALL_X:
+            if t.center_x - t.radius <= WALL_X:
                 # we want to force the turkey to move right
-                MyGame.turkey_speeds[index] = abs(MyGame.turkey_speeds[index])
-            elif turkey.center_x + TURKEY_RADIUS >= MOUNTAIN_X_MIN:
+                t.pacing_speed = abs(t.pacing_speed)
+            elif t.center_x + t.radius >= MOUNTAIN_X_MIN:
                 # we want to force the turkey to move left
-                MyGame.turkey_speeds[index] *= - \
-                    abs(MyGame.turkey_speeds[index])
-            turkey.move(MyGame.turkey_speeds[index], 0)
-
-    def draw_mountain(self):
-        """
-        draws the mountain
-        """
-        self.mountain.draw()
-        # arcade.draw_polygon_filled(self.mountain_points, arcade.color.BROWN_NOSE)
-        # for p1, p2 in pairs(self.mountain_points):
-        # arcade.draw_line(p1.x, p1.y, p2.x, p2.y, arcade.color.BLACK, 3)
-        # arcade.draw_polygon_filled()
+                t.pacing_speed *= - abs(t.pacing_speed)
+            t.move(t.pacing_speed, 0)
 
     def draw_wall(self):
         """Draws the wall on the left side of the screen."""
         arcade.draw_line(
             *self.wall_points[0], *self.wall_points[1], arcade.color.BLACK, 10)
 
-    def draw_ball(self):
-        # center_x = self.ball.curr_pos[0]
-        # center_y = self.ball.curr_pos[1]
-        if self.ball is not None:
-            arcade.draw_circle_filled(
-                *self.ball.curr_pos, Ball.radius, arcade.color.BLACK)
 
     def draw_cannon(self) -> None:
         arcade.draw_rectangle_filled(
@@ -264,12 +234,6 @@ class MyGame(arcade.Window):
         self.ball = Ball((CANNON_X, CANNON_Y), velocity)
         self.particle_system.balls.append(self.ball)
 
-
-class ParticleType(Enum):
-    ball = 0
-    turkey = 1
-
-
 class Particle():
     next_particle_id = 0
 
@@ -281,7 +245,7 @@ class Particle():
             return other.particle_id == self.particle_id
         return NotImplemented
 
-    def __init__(self, p_type: ParticleType, position: Tuple[float, float], mass: float = 0):
+    def __init__(self, position: Tuple[float, float], mass: float = 0):
         self.particle_id = Particle.next_particle_id
         Particle.next_particle_id += 1
         self.curr_pos = np.asarray(position, dtype=float)
@@ -289,7 +253,6 @@ class Particle():
         self.acceleration = np.zeros(2, float)
         self.attached_particles: Dict[Particle, float] = dict()
         self.inv_mass = 0 if mass == 0 else 1.0/mass
-        self.particle_type: ParticleType = p_type
         self.can_move: bool = True
 
     def __repr__(self) -> str:
@@ -311,7 +274,6 @@ class Particle():
 class Cloud(arcade.Sprite):
     filename: str = os.path.join("images", "cloud_sprite.png")
     scale: float = 0.1
-
     def __init__(self, position: Tuple[float, float]):
         super().__init__(
             filename=Cloud.filename,
@@ -337,10 +299,9 @@ class Ball(Particle):
     radius: float = 5.0
 
     def __init__(self, position: Tuple[float, float], velocity: Tuple[float, float]):
-        super().__init__(ParticleType.ball, position, Ball.mass)
+        super().__init__(position, Ball.mass)
         # setting the "velocity" by changing the previous position.
-        self.prev_pos = self.curr_pos - \
-            FRAME_TIME * np.asarray(velocity, float)
+        self.prev_pos = self.curr_pos - FRAME_TIME * np.asarray(velocity, float)
 
     def might_collide_with_wall(self) -> bool:
         return (self.curr_pos[0] - Ball.radius) - WALL_X < 5
@@ -351,6 +312,9 @@ class Ball(Particle):
         return MOUNTAIN_X_MIN <= (ball_x + radius) and (ball_x - radius) <= MOUNTAIN_X_MAX \
             and MOUNTAIN_Y_MIN <= (ball_y + radius) and (ball_y - radius) <= MOUNTAIN_Y_MAX
 
+    def draw(self) -> None:
+        arcade.draw_circle_filled(*self.curr_pos, Ball.radius, arcade.color.BLACK)
+
 
 class StickConstraint(NamedTuple):
     p1: Particle
@@ -359,7 +323,6 @@ class StickConstraint(NamedTuple):
 
 
 class RigidBody():
-    # TODO: this might be useful to define a Turkey.
     particles: List[Particle]
     stick_constraints: List[StickConstraint]
 
@@ -397,14 +360,11 @@ class ParticleSystem():
             p.prev_pos = temp
 
     def accumulate_forces(self) -> None:
-        p: Particle
-        for p in filter(lambda p: p.can_move, self.balls):
-            if p.particle_type == ParticleType.ball:
-                if p.curr_pos[1] >= WIND_START_Y:
-                    p.acceleration = np.asarray(
-                        (ParticleSystem.wind_speed, GRAVITY))
+        for ball in filter(lambda b: b.can_move, self.balls):
+                if ball.curr_pos[1] >= WIND_START_Y:
+                    ball.acceleration = np.asarray((ParticleSystem.wind_speed, GRAVITY))
                 else:
-                    p.acceleration = np.asarray((0.0, GRAVITY))
+                    ball.acceleration = np.asarray((0.0, GRAVITY))
 
     NUM_ITERATIONS: float = 1
 
@@ -470,23 +430,25 @@ class ParticleSystem():
                         new_velocity = v_tangent * tangential + v_normal * normal
                         # set the ball's velocity
                         ball.prev_pos = ball.curr_pos - new_velocity
-
-                        # delta = ball.curr_pos - mountain_p
-                        # print("Delta: ", delta)
-                        # print(ball)
-                        # img = arcade.get_image()
-                        # img.save("./collision.png")
-                        # exit()
                         break
-
-                # constrain #1: the particles have to stay within the area.
                 min_constraint = (0, GROUND_Y)
                 max_constraint = (SCREEN_WIDTH, SCREEN_HEIGHT)
                 ball.curr_pos = np.max([ball.curr_pos, min_constraint], axis=0)
                 ball.curr_pos = np.min([ball.curr_pos, max_constraint], axis=0)
 
-            for c in self.turkeys:
-                pass
+            for turkey in self.turkeys:
+                for constraint in turkey.stick_constraints:
+                    pass
+
+                for attached_p, constraint in p.attached_particles.items():
+                    # Pseudo-code to satisfy (C2)
+                    delta = p.curr_pos - attached_p.curr_pos
+                    delta_dot = np.dot(delta, delta)
+                    delta_length = np.sqrt(delta_dot)
+                    diff = (delta_length-constraint)/delta_length
+                    p.curr_pos -= delta*0.5*diff
+                    attached_p.curr_pos += delta*0.5*diff
+
                 # Pseudo-code for satisfying (C2) using sqrt approximation
                 # rest_length = c.length
                 # delta = c.p2.curr_pos - c.p1.curr_pos
@@ -506,16 +468,6 @@ class ParticleSystem():
                 # diff /= (deltalength * (p1.inv_mass + p2.inv_mass))
                 # p1.curr_pos -= p1.inv_mass * delta * diff
                 # p2.curr_pos += p2.inv_mass * delta * diff
-
-                # for attached_p, constraint in p.attached_particles.items():
-                #     # Pseudo-code to satisfy (C2)
-
-                #     delta = p.curr_pos - attached_p.curr_pos
-                #     delta_dot = np.dot(delta, delta)
-                #     delta_length = np.sqrt(delta_dot)
-                #     diff = (delta_length-constraint)/delta_length
-                #     p.curr_pos -= delta*0.5*diff
-                #     attached_p.curr_pos += delta*0.5*diff
 
 # def main():
 #     p1 = Particle([0, 11])
@@ -537,9 +489,12 @@ class ParticleSystem():
 
 def main():
     """ Main method """
-    game = MyGame(SCREEN_WIDTH, SCREEN_HEIGHT)
-    game.setup()
-    arcade.run()
+    try:
+        game = MyGame(SCREEN_WIDTH, SCREEN_HEIGHT)
+        game.setup()
+        arcade.run()
+    finally:
+        arcade.close_window()
 
 
 if __name__ == "__main__":

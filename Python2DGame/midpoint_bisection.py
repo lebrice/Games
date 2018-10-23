@@ -2,22 +2,20 @@
 Module for midpoint bisection
 """
 
-from typing import List, NamedTuple, Iterable, Iterator
+from typing import List, NamedTuple, Iterable, Iterator, Tuple
 import random
 import numpy as np
 from itertools import cycle, islice
 from utils import pairs
-class Point(NamedTuple):
-    x: float
-    y: float
+
 
 
 def main():
     points = [
-        Point(0, 0),
-        Point(50, 50),
-        Point(65, 50),
-        Point(100, 0),
+        (0, 0),
+        (50, 50),
+        (65, 50),
+        (100, 0),
     ]
     new_points = midpoint_bisection(points, max_iterations=3)
     print(new_points[:,1])
@@ -35,11 +33,11 @@ def interlace(list1: List, list2: List) -> List:
     result[1::2] = list2
     return result
 
-def midpoint_bisection(points: List[Point], max_iterations=4, iteration: int = 0) -> List[Point]:
+def midpoint_bisection(points: List[Tuple[float, float]], max_iterations=4, iteration: int = 0) -> List[Tuple[float, float]]:
     """
     """
     points = np.asarray(points, float)
-    def midpoint(point1: Point, point2: Point, displacement_range: float, iteration: int = 0) -> Point:
+    def midpoint(point1: Tuple[float, float], point2: Tuple[float, float], displacement_range: float, iteration: int = 0) -> Tuple[float, float]:
         mean_y = (point1[1] + point2[1]) / 2
         mean_x = (point1[0] + point2[0]) / 2
 
@@ -53,7 +51,7 @@ def midpoint_bisection(points: List[Point], max_iterations=4, iteration: int = 0
 
     displacement_range = (max(points[:,1]) - min(points[:,1])) / 2
     
-    def make_midpoints(points: List[Point], displacement_range: float, iteration: int) -> List[Point]:
+    def make_midpoints(points: List[Tuple[float, float]], displacement_range: float, iteration: int) -> List[Tuple[float, float]]:
         """
         Recursive function which actually makes the midpoints.
         """

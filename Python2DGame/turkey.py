@@ -2,6 +2,8 @@ import arcade
 import numpy as np
 from typing import List, Tuple, Set
 from utils import pairs
+import game
+# from game import RigidBody, StickConstraint, Particle
 # list of contiguous segments that form the basis of a turkey.
 TURKEY_SEGMENTS: List[List[Tuple[float, float]]]= [
     [ # left leg
@@ -50,38 +52,43 @@ TURKEY_SEGMENTS: List[List[Tuple[float, float]]]= [
     ]
 ]
 
-TURKEY_POINTS: Set = None
-TURKEY_WIDTH: float = None
-TURKEY_HEIGHT: float = None
-TURKEY_RADIUS: float = None
+BASE_POINTS: Set = None
+BASE_WIDTH: float = None
+BASE_HEIGHT: float = None
+BASE_RADIUS: float = None
 
-DEFAULT_SCALE: float = 5.0
+DEFAULT_SCALE: float = 4.0
 
-
-TURKEY_POINTS = list(set([p for segment in TURKEY_SEGMENTS for p in segment]))
-TURKEY_WIDTH, TURKEY_HEIGHT = np.max(TURKEY_POINTS, axis=0) - np.min(TURKEY_POINTS, axis=0)
-TURKEY_RADIUS = max((TURKEY_HEIGHT, TURKEY_WIDTH)) / 2
-print("HERE")
-if __name__ == "__main__":
-    pass
+BASE_POINTS = np.asarray(list(set([p for segment in TURKEY_SEGMENTS for p in segment])), dtype=float)
+BASE_WIDTH, BASE_HEIGHT = np.max(BASE_POINTS, axis=0) - np.min(BASE_POINTS, axis=0)
+BASE_RADIUS = max((BASE_HEIGHT, BASE_WIDTH)) / 2
 
 
-def create_turkey(scale: float = DEFAULT_SCALE) -> arcade.ShapeElementList:
-    turkey = arcade.ShapeElementList()
-    color = arcade.color.BLACK
-    for segment in TURKEY_SEGMENTS[:-1]:
-        segment = np.asarray(segment, dtype=float)
-        segment *= scale
-        for p1, p2 in pairs(segment):
-            turkey.append(arcade.create_line(*p1, *p2, color=color))
-    eye_point = np.asarray(TURKEY_SEGMENTS[-1][0], dtype=float)
-    eye_radius = 1
-    eye_point *= scale
-    eye_radius *= np.sqrt(scale)
-    turkey.append(arcade.create_ellipse_filled_with_colors(eye_point[0], eye_point[1], width=eye_radius, height=eye_radius, inside_color=color, outside_color=color))
-    return turkey
+class Turkey(arcade.ShapeElementList, game.RigidBody):
+    max_pacing_speed: float = 2.0
 
-class Turkey():
     def __init__(self, scale: float = DEFAULT_SCALE):
+        super().__init__()
+        self.points: List[Tuple[float,float]] = BASE_POINTS * scale
+        self.make_turkey_shapelist(scale)
+        self.width : float = BASE_WIDTH * scale
+        self.height : float = BASE_HEIGHT * scale
+        self.radius : float = BASE_RADIUS * scale
+        self.pacing_speed : float = 0
+
+    def random_change_pace(self) -> None:
         pass
-        self.shape_element_list = create_turkey(scale)
+
+
+    def make_turkey_shapelist(self, scale: float) -> None:
+        color = arcade.color.BLACK
+        for segment in TURKEY_SEGMENTS[:-1]:
+            segment = np.asarray(segment, dtype=float)
+            segment *= scale
+            for p1, p2 in pairs(segment):
+                self.append(arcade.create_line(*p1, *p2, color=color))
+        eye_point = np.asarray(TURKEY_SEGMENTS[-1][0], dtype=float)
+        eye_radius = 1
+        eye_point *= scale
+        eye_radius *= np.sqrt(scale)
+        self.append(arcade.create_ellipse_filled_with_colors(eye_point[0], eye_point[1], width=eye_radius, height=eye_radius, inside_color=color, outside_color=color))
