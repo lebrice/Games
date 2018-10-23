@@ -58,13 +58,13 @@ class MyGame(arcade.Window):
         # If you have sprite lists, you should create them here,
         # and set them to None
         self.mountain_points = [
-            Point(MOUNTAIN_X_MIN, MOUNTAIN_Y_MIN),
-            Point(int(MOUNTAIN_X_MIN + 0.50 * (MOUNTAIN_WIDTH)), MOUNTAIN_Y_MAX),
-            Point(MOUNTAIN_X_MAX, MOUNTAIN_Y_MIN),
+            (MOUNTAIN_X_MIN, MOUNTAIN_Y_MIN),
+            (int(MOUNTAIN_X_MIN + 0.50 * (MOUNTAIN_WIDTH)), MOUNTAIN_Y_MAX),
+            (MOUNTAIN_X_MAX, MOUNTAIN_Y_MIN),
         ]
         self.wall_points = [
-            Point(WALL_X, GROUND_Y),
-            Point(WALL_X, SCREEN_HEIGHT - 1),
+            (WALL_X, GROUND_Y),
+            (WALL_X, SCREEN_HEIGHT - 1),
         ]
         self.turkeys = None
         self.particle_system: ParticleSystem = None
@@ -75,7 +75,7 @@ class MyGame(arcade.Window):
     def setup(self):
         # Create your sprites and sprite lists here
         self.mountain_points = midpoint_bisection(self.mountain_points, max_iterations=4)
-        print([int(p.y) for p in self.mountain_points])
+        print(self.mountain_points[:, 1])
         self.particle_system = ParticleSystem()
         self.particle_system.mountain_points = self.mountain_points
         self.clouds = arcade.SpriteList()
@@ -332,6 +332,7 @@ class ParticleSystem():
                     p.acceleration = np.asarray((ParticleSystem.wind_speed, GRAVITY))
                 else:
                     p.acceleration = np.asarray((0.0, GRAVITY))
+    
     def satisfy_constraints(self) -> None:
         for i in range(NUM_ITERATIONS):
             p: Particle
@@ -369,16 +370,21 @@ class ParticleSystem():
                                 # TODO: figure out how to do the collision resolution.
                                 # the vector from one mountain point to the next
                                 line_vector = p1 - p0
-                                # the normal to that vector
                                 normal = (-line_vector[1], line_vector[0])
+                                unit_normal = normal / np.linalg.norm(normal)
+                                print("normal vector to mountain segment: ", unit_normal)
                                 
                                 current_velocity = ball.curr_pos - ball.prev_pos
-                                new_velocity =
+                                current_velocity_norm = np.linalg.norm(current_velocity)
+
+
+                                new_velocity = restitution_coefficient * -1 * current_velocity
+
                                 ball.prev_pos = ball.curr_pos - new_velocity
                                 # ball.prev_pos = mountain_p
                                 
                                 delta = ball.curr_pos - mountain_p
-                                print(delta)
+                                print("Delta: ", delta)
                                 print(ball)
                                 img = arcade.get_image()
                                 img.save("./collision.png")

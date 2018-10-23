@@ -20,7 +20,7 @@ def main():
         Point(100, 0),
     ]
     new_points = midpoint_bisection(points, max_iterations=3)
-    print([int(p.y) for p in new_points])
+    print(new_points[:,1])
 
 def pairs(elements: Iterable) -> Iterator:
     """
@@ -49,6 +49,7 @@ def interlace(list1: List, list2: List) -> List:
 def midpoint_bisection(points: List[Point], max_iterations=4, iteration: int = 0) -> List[Point]:
     """
     """
+    points = np.asarray(points, float)
     def midpoint(point1: Point, point2: Point, displacement_range: float, iteration: int = 0) -> Point:
         mean_y = (point1[1] + point2[1]) / 2
         mean_x = (point1[0] + point2[0]) / 2
@@ -56,12 +57,12 @@ def midpoint_bisection(points: List[Point], max_iterations=4, iteration: int = 0
         random_displacement = np.random.normal(scale=0.5) * displacement_range
         random_displacement *= 2 ** (-iteration)
         
-        return Point(
-            x = mean_x,
-            y = mean_y + random_displacement,
+        return (
+            mean_x,
+            mean_y + random_displacement,
         )
 
-    displacement_range = (max(points, key=lambda p: p.y).y - min(points, key=lambda p: p.y).y) / 2
+    displacement_range = (max(points[:,1]) - min(points[:,1])) / 2
     
     def make_midpoints(points: List[Point], displacement_range: float, iteration: int) -> List[Point]:
         """
@@ -76,7 +77,7 @@ def midpoint_bisection(points: List[Point], max_iterations=4, iteration: int = 0
         del points, points_to_add
         return make_midpoints(result_points, displacement_range, iteration + 1)
 
-    return make_midpoints(points, displacement_range, 0)
+    return np.asarray(make_midpoints(points, displacement_range, 0), float)
 
 if __name__ == "__main__":
     main()
