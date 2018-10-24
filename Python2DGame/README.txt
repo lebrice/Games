@@ -18,6 +18,6 @@ Requirements:
 - `pip install ./requirements.txt`
     - NOTE: for Windows, the Shapely package (used in collision detection) might fail to install. In that case, the appropriate shapely wheel has to be downloaded from this site:
     https://www.lfd.uci.edu/~gohlke/pythonlibs/#shapely (look for the wheel corresponding to your Python version) 
-    - a Wheel for python 3.7 was included in this directory
+    - Wheels for python 3.6 and 3.7 were included in this directory (to install them, run "pip install ./Shapely-1.6.4.(...).whl")
 
 To run the game, then simply execute `game.py` from the command line.

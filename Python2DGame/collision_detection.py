@@ -141,7 +141,7 @@ def time_this(times):
 def main():
     # intersect, point = line_line_intersection((0, 0), (5, 0), (4, 2), (4, 1))
     # print(intersect, point)
-    
+    print("Just testing out the speed of collision detection.")
     times = []
     for _ in range(100):
         p0 = np.random.uniform(0, 10, size=(2))
