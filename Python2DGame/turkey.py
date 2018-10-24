@@ -3,6 +3,7 @@ import numpy as np
 from typing import List, Tuple, Set
 from utils import pairs
 import game
+from physics import RigidBody, Particle, StickConstraint
 # from game import RigidBody, StickConstraint, Particle
 # list of contiguous segments that form the basis of a turkey.
 TURKEY_SEGMENTS: List[List[Tuple[float, float]]]= [
@@ -64,7 +65,7 @@ BASE_WIDTH, BASE_HEIGHT = np.max(BASE_POINTS, axis=0) - np.min(BASE_POINTS, axis
 BASE_RADIUS = max((BASE_HEIGHT, BASE_WIDTH)) / 2
 
 
-class Turkey(arcade.ShapeElementList, game.RigidBody):
+class Turkey(arcade.ShapeElementList, RigidBody):
     max_pacing_speed: float = 2.0
 
     def __init__(self, scale: float = DEFAULT_SCALE):
