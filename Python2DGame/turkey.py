@@ -69,18 +69,31 @@ BASE_RADIUS = max((BASE_HEIGHT, BASE_WIDTH)) / 2
 class Turkey(arcade.ShapeElementList, RigidBody):
     max_pacing_speed: float = 2.0
     color = arcade.color.BLACK
-
+    # the mass of each particle that makes up a Turkey
+    mass: float = 0.1
     def __init__(self, scale: float = DEFAULT_SCALE):
         super().__init__()
         self.scale = scale
-        self.points: List[Tuple[float,float]] = BASE_POINTS * self.scale
 
-        self.segments: List[List[Tuple[float,float]]] = []
-        for segment in TURKEY_SEGMENTS.values():
-            self.segments.append(np.asarray(segment, float) * self.scale)
+        self.particles = []
+        self.segments: Dict[str, List[Particle]] = {}
 
-        print(self.points)
+        for name, segment in TURKEY_SEGMENTS.items():
+            # scale the points up.
+            scaled_points = np.asarray(segment, float) * self.scale
+            self.segments[name] = []
+            for p in scaled_points:
+                particle = Particle(position=p, mass=Turkey.mass)
+                # if particle in self.particles:
+                self.particles.append(particle)
+                self.segments[name].append(particle)
+            
+
+
+
         print(self.segments)
+
+
         self.make_turkey_shapelist(self.scale)
         self.width : float = BASE_WIDTH * self.scale
         self.height : float = BASE_HEIGHT * self.scale
@@ -92,7 +105,6 @@ class Turkey(arcade.ShapeElementList, RigidBody):
 
     # def draw(self) -> None:
     #     pass
-
 
     def make_turkey_shapelist(self, scale: float) -> None:
         color = arcade.color.BLACK
