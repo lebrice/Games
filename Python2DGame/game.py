@@ -93,6 +93,7 @@ class MyGame(arcade.Window):
         self.clouds.append(Cloud((SCREEN_WIDTH / 3, SCREEN_HEIGHT * 3/4)))
         self.turkeys.append(turkey.Turkey())
         self.turkeys[0].move(100, 100)
+        self.particle_system.turkeys.append(self.turkeys[0])
 
     def on_draw(self):
         """
@@ -198,24 +199,28 @@ class MyGame(arcade.Window):
 
         for t in self.turkeys:
             # BUG: The jumping doesn't work!
+            if t.bottom > GROUND_Y + 10:
+                # if the turkey is in the air:
+                continue
+
             # randomly jump about every 5 seconds
             if MyGame.i %  random.randint(3 * FRAME_RATE, 6 * FRAME_RATE) == 0:
                 t.jump()
             
-            if MyGame.i % (3 * FRAME_RATE) == 0:
+            if MyGame.i % random.randint(1 * FRAME_RATE, 3 * FRAME_RATE) == 0:
                 t.pacing_speed = random_speed()
-            # TODO: only move the turkeys like this if they are below the wind ?
-            if t.center_x - t.radius <= WALL_X:
-                # we want to force the turkey to move right
-                t.pacing_speed = abs(t.pacing_speed)
-            elif t.center_x + t.radius >= MOUNTAIN_X_MIN:
-                # we want to force the turkey to move left
-                t.pacing_speed *= - abs(t.pacing_speed)
+                t.velocity[0] = t.pacing_speed 
+            # if t.center_x - t.radius <= WALL_X:
+            #     # we want to force the turkey to move right
+            #     t.pacing_speed = abs(t.pacing_speed)
+            # elif t.center_x + t.radius >= MOUNTAIN_X_MIN:
+            #     # we want to force the turkey to move left
+            #     t.pacing_speed *= - abs(t.pacing_speed)
 
+            t.velocity[0] = t.pacing_speed
             #FIXME: Moving the turkey like this seems like a bad idea! (but its the only thing that works right now)
-            t.move(t.pacing_speed, 0.0)
+            # t.move(t.pacing_speed, 0.0)
             # Much better would be to have the pacing be some kind of acceleration or velocity:
-            # t.velocity[0] = t.pacing_speed
             # print(t.velocity[0])
 
     def draw_wall(self):

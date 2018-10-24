@@ -69,7 +69,7 @@ BASE_RADIUS = max((BASE_HEIGHT, BASE_WIDTH)) / 2
 class Turkey(RigidBody):
     max_pacing_speed: float = 2
     color = arcade.color.BLACK
-    jump_impulse_speed: float = 10
+    jump_impulse_speed: float = 2
     # the mass of each particle that makes up a Turkey
     mass: float = 0.1
     def __init__(self, scale: float = DEFAULT_SCALE):

@@ -165,7 +165,7 @@ class ParticleSystem():
                 p.acceleration * FRAME_TIME * FRAME_TIME
             p.prev_pos = temp
         for turkey in self.turkeys:
-            for p in filter(lambda particle: particle.can_move, turkey.particle):
+            for p in filter(lambda particle: particle.can_move, turkey.particles):
                 temp = np.copy(p.curr_pos)
                 p.curr_pos += (p.curr_pos - p.prev_pos) + \
                     p.acceleration * FRAME_TIME * FRAME_TIME
@@ -252,32 +252,25 @@ class ParticleSystem():
             for turkey in self.turkeys:
                 for constraint in turkey.stick_constraints:
                     constraint.apply()
-
-                for attached_p, constraint in p.attached_particles.items():
-                    # Pseudo-code to satisfy (C2)
-                    delta = p.curr_pos - attached_p.curr_pos
-                    delta_dot = np.dot(delta, delta)
-                    delta_length = np.sqrt(delta_dot)
-                    diff = (delta_length-constraint)/delta_length
-                    p.curr_pos -= delta*0.5*diff
-                    attached_p.curr_pos += delta*0.5*diff
-
-                # Pseudo-code for satisfying (C2) using sqrt approximation
-                # rest_length = c.length
-                # delta = c.p2.curr_pos - c.p1.curr_pos
-                # delta*=rest_length*rest_length/(delta*delta+rest_length*rest_length)-0.5
-                # c.p1.curr_pos -= delta
-                # c.p2.curr_pos += delta
-
-                # if c.p1.inv_mass == 0 and c.p2.inv_mass == 0:
-                #     # the two particles are immovable.
-                #     continue
-
-                # # Pseudo-code to satisfy (C2) while taking mass into account.
-                # p1, p2 = c.p1, c.p2
-                # delta = p2.curr_pos - p1.curr_pos
-                # deltalength = np.sqrt(np.dot(delta, delta))
-                # diff = (deltalength - c.rest_length)
-                # diff /= (deltalength * (p1.inv_mass + p2.inv_mass))
-                # p1.curr_pos -= p1.inv_mass * delta * diff
-                # p2.curr_pos += p2.inv_mass * delta * diff
+                    
+                # min_constraint = (0, GROUND_Y)
+                # max_constraint = (SCREEN_WIDTH, SCREEN_HEIGHT)
+                if turkey.bottom < GROUND_Y:
+                    for particle in turkey.particles:
+                        if particle.curr_pos[1] < GROUND_Y:
+                            particle.curr_pos[1] = GROUND_Y
+                if turkey.top > SCREEN_HEIGHT-1:
+                    for particle in turkey.particles:
+                        if particle.curr_pos[1] > SCREEN_HEIGHT - 1:
+                            particle.curr_pos[1] = SCREEN_HEIGHT - 1
+                if turkey.left < 0:
+                    for particle in turkey.particles:
+                        if particle.curr_pos[0] < 0:
+                            particle.curr_pos[0] = 0.0
+                if turkey.right > MOUNTAIN_START_X:
+                    for particle in turkey.particles:
+                        if particle.curr_pos[1] > MOUNTAIN_START_X:
+                            particle.curr_pos[0] = MOUNTAIN_START_X
+                # for particle in turkey:
+                    # ball.curr_pos = np.max([ball.curr_pos, min_constraint], axis=0)
+                    # ball.curr_pos = np.min([ball.curr_pos, max_constraint], axis=0)
