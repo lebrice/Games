@@ -75,9 +75,6 @@ class Turkey(RigidBody):
     def __init__(self, scale: float = DEFAULT_SCALE):
         super().__init__()
         self.scale = scale
-
-        self.particles: List[Particle] = []
-        self.stick_constraints: List[StickConstraint] = []
         self.segments: Dict[str, List[Particle]] = {}
         # self.make_turkey_shapelist(self.scale)
         self.width : float = BASE_WIDTH * self.scale
@@ -106,15 +103,18 @@ class Turkey(RigidBody):
                 # append the particle to this segment.
                 self.segments[name].append(particle)
             
+            if name == "eye":
+                continue
+
             # create a Stick constraint for each pair within this segment.
             for p1, p2 in pairs(self.segments[name]):
                 constraint = StickConstraint(p1, p2, relatice_tolerance=0.1)
                 self.stick_constraints.append(constraint)
 
-        # TODO: add more flexible stick constraints between a node and some other nodes:
-        for p1, p2 in pairs(self.particles[::2]):
-            constraint = StickConstraint(p1, p2, relatice_tolerance=0.4)
-            self.stick_constraints.append(constraint)
+            # add more flexible stick constraints between every other node on this segment:
+            for p1, p2 in pairs(self.segments[name][::2]):
+                constraint = StickConstraint(p1, p2, relatice_tolerance=0.4)
+                self.stick_constraints.append(constraint)
 
 
     def jump(self) -> None:

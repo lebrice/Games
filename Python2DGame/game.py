@@ -68,7 +68,7 @@ class MyGame(arcade.Window):
     i: int
 
     def __init__(self, width, height):
-        super().__init__(width, height)
+        super().__init__(width, height, "COMP521 Assignment#2 - Fabrice Normandin")
         MyGame.i = 0
         # If you have sprite lists, you should create them here,
         # and set them to None
