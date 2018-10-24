@@ -5,6 +5,8 @@ import arcade
 from config import *
 from utils import pairs
 from collision_detection import circle_line_intersection
+
+
 class Particle():
     next_particle_id = 0
 
@@ -49,7 +51,8 @@ class Ball(Particle):
     def __init__(self, position: Tuple[float, float], velocity: Tuple[float, float]):
         super().__init__(position, Ball.mass)
         # setting the "velocity" by changing the previous position.
-        self.prev_pos = self.curr_pos - FRAME_TIME * np.asarray(velocity, float)
+        self.prev_pos = self.curr_pos - \
+            FRAME_TIME * np.asarray(velocity, float)
 
     def might_collide_with_wall(self) -> bool:
         return (self.curr_pos[0] - Ball.radius) - WALL_X < 5
@@ -61,21 +64,54 @@ class Ball(Particle):
             and MOUNTAIN_Y_MIN <= (ball_y + radius) and (ball_y - radius) <= MOUNTAIN_Y_MAX
 
     def draw(self) -> None:
-        arcade.draw_circle_filled(*self.curr_pos, Ball.radius, arcade.color.BLACK)
+        arcade.draw_circle_filled(
+            *self.curr_pos, Ball.radius, arcade.color.BLACK)
 
 
-class StickConstraint(NamedTuple):
-    p1: Particle
-    p2: Particle
-    rest_length: float
+class StickConstraint():
+    def __init__(self, p1: Particle, p2: Particle, rest_length: float = None, relatice_tolerance: float = 0.10):
+        """
+        Creates a new stick constraint between two particles, keeping them apart
+        with a distance of `rest_length` and with a tolerance of `relative_tolerance`.
+        """
+        self.p1 = p1
+        self.p2 = p2
+        if rest_length is None:
+            self.rest_length = np.linalg.norm(self.p2.curr_pos - self.p1.curr_pos)
+        else:
+            self.rest_length = rest_length
+        self.tolerance_rel = relatice_tolerance
+        self.tolerance_abs = relatice_tolerance * self.rest_length
+    
+    def apply(self) -> None:
+        """
+        Applies the constraint, pushing the particles closer together or further appart.
+        """
+        delta = self.p2.curr_pos - self.p1.curr_pos
+        distance = np.linalg.norm(delta)
+        minimum = self.rest_length - self.tolerance_abs
+        maximum = self.rest_length + self.tolerance_abs
+        if distance < minimum:
+            # the particles are too close together!
+            error = (distance - minimum) / distance
+            self.p1.curr_pos -= delta * 0.5 * error
+            self.p2.curr_pos += delta * 0.5 * error
+        elif distance > maximum:
+            # the particles are too far from one another.
+            error = (distance - maximum) / distance
+            self.p1.curr_pos -= delta * 0.5 * error
+            self.p2.curr_pos += delta * 0.5 * error
 
 
 class RigidBody():
     particles: List[Particle]
     stick_constraints: List[StickConstraint]
 
-
 class ParticleSystem():
+
+    # number of iterations of the verlet integration portion.
+    NUM_ITERATIONS: float = 1
+
     # changing the wind every 2 seconds. (0.5 seconds is a bit too fast!)
     wind_change_interval: int = FRAME_RATE * 2
     max_wind_speed: float = 15
@@ -109,12 +145,12 @@ class ParticleSystem():
 
     def accumulate_forces(self) -> None:
         for ball in filter(lambda b: b.can_move, self.balls):
-                if ball.curr_pos[1] >= WIND_START_Y:
-                    ball.acceleration = np.asarray((ParticleSystem.wind_speed, GRAVITY))
-                else:
-                    ball.acceleration = np.asarray((0.0, GRAVITY))
+            if ball.curr_pos[1] >= WIND_START_Y:
+                ball.acceleration = np.asarray(
+                    (ParticleSystem.wind_speed, GRAVITY))
+            else:
+                ball.acceleration = np.asarray((0.0, GRAVITY))
 
-    NUM_ITERATIONS: float = 1
 
     def satisfy_constraints(self) -> None:
         for i in range(ParticleSystem.NUM_ITERATIONS):
@@ -147,7 +183,8 @@ class ParticleSystem():
                 elif ball.might_collide_with_mountain():
                     # check if the ball collidies with a line of the mountain.
                     for p0, p1 in pairs(self.mountain_points):
-                        result = circle_line_intersection(ball.curr_pos, Ball.radius, p0, p1)
+                        result = circle_line_intersection(
+                            ball.curr_pos, Ball.radius, p0, p1)
                         collision, mountain_p, penetration_dist = result
                         if not collision:
                             continue
@@ -160,12 +197,11 @@ class ParticleSystem():
                         tangential /= np.linalg.norm(tangential)
                         # the normal is perpendicular to the mountain segment.
                         # TODO: we want the upward-pointing normal, does this matter ?
-                        normal = np.asarray((-tangential[1], tangential[0]), float)
+                        normal = np.asarray(
+                            (-tangential[1], tangential[0]), float)
 
                         # move the ball out of the mountain.
                         ball.curr_pos += normal * penetration_dist
-                        
-
 
                         velocity = ball.curr_pos - ball.prev_pos
 
