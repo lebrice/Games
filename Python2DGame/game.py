@@ -138,6 +138,11 @@ class MyGame(arcade.Window):
             self.cannon_angle = min(self.cannon_angle, 90)
         if key == arcade.key.SPACE:
             self.fire_cannonball()
+        if key == arcade.key.P:
+            image = arcade.get_image()
+            path = f"screenshot_{MyGame.i}.png"
+            image.save(path)
+            print("Saved a screenshot at path: ", path)
 
     def on_key_release(self, key, key_modifiers):
         """
