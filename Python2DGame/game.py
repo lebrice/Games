@@ -189,9 +189,15 @@ class MyGame(arcade.Window):
         """
         def random_speed():
             return np.random.uniform(turkey.Turkey.max_pacing_speed, turkey.Turkey.max_pacing_speed)
+        # TODO: can't have the turkey moving while it is also in the air!
 
         for t in self.turkeys:
-            if MyGame.i % random.randint(1, 3 * FRAME_RATE) == 0:
+            # BUG: The jumping doesn't work!
+            # randomly jump about every 5 seconds
+            if MyGame.i %  random.randint(3 * FRAME_RATE, 6 * FRAME_RATE) == 0:
+                t.jump()
+            
+            if MyGame.i % (3 * FRAME_RATE) == 0:
                 t.pacing_speed = random_speed()
             # TODO: only move the turkeys like this if they are below the wind ?
             if t.center_x - t.radius <= WALL_X:
@@ -200,7 +206,12 @@ class MyGame(arcade.Window):
             elif t.center_x + t.radius >= MOUNTAIN_X_MIN:
                 # we want to force the turkey to move left
                 t.pacing_speed *= - abs(t.pacing_speed)
-            t.move(t.pacing_speed, 0)
+
+            #FIXME: Moving the turkey like this seems like a bad idea! (but its the only thing that works right now)
+            t.move(t.pacing_speed, 0.0)
+            # Much better would be to have the pacing be some kind of acceleration or velocity:
+            # t.velocity[0] = t.pacing_speed
+            # print(t.velocity[0])
 
     def draw_wall(self):
         """Draws the wall on the left side of the screen."""

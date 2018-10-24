@@ -2,6 +2,12 @@ COMP 521 Assignment #2 - Fabrice Normandin - McGill ID 260636800
 
 This simple game is built using the Python Arcade library, which can be installed via Pip.
 
+General Notes:
+- Turkeys aren't exactly completed. They are made of a verlet system, but the collision hasn't been done yet.
+- The scheme for the turkey constrains and geometry is shown in the "turkey.pdf" file.
+
+
+
 
 Requirements:
 - Python 3.6+

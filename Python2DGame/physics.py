@@ -1,7 +1,7 @@
 import numpy as np
 from typing import Tuple, List, NamedTuple
 import arcade
-
+import random
 from config import *
 from utils import pairs
 from collision_detection import circle_line_intersection
@@ -24,49 +24,23 @@ class Particle():
         self.curr_pos = np.asarray(position, dtype=float)
         self.prev_pos = np.asarray(position, dtype=float)
         self.acceleration = np.zeros(2, float)
-        self.attached_particles: Dict[Particle, float] = dict()
         self.inv_mass = 0 if mass == 0 else 1.0/mass
         self.can_move: bool = True
+
+    @property
+    def velocity(self) -> Tuple[float, float]:
+        """ the velocity, in pixels per second. """
+        return (self.curr_pos - self.prev_pos)
+    
+    @velocity.setter
+    def velocity(self, value: Tuple[float, float]) -> None:
+        self.prev_pos = self.curr_pos - value 
 
     def __repr__(self) -> str:
         string = "ID: " + str(self.particle_id) + "\t"
         string += "X: " + str(self.curr_pos) + "\t"
         string += "V:" + str(self.curr_pos - self.prev_pos) + "\t"
-        string += "Attached:" + str([(p.particle_id, value)
-                                     for p, value in self.attached_particles.items()])
         return string
-
-    def attach(self, other_particle, constraint: float) -> None:
-        if other_particle not in self.attached_particles:
-            self.attached_particles[other_particle] = constraint
-        # on the other side.
-        if self not in other_particle.attached_particles:
-            other_particle.attached_particles[self] = constraint
-
-
-class Ball(Particle):
-    mass: float = 1.0
-    radius: float = 5.0
-
-    def __init__(self, position: Tuple[float, float], velocity: Tuple[float, float]):
-        super().__init__(position, Ball.mass)
-        # setting the "velocity" by changing the previous position.
-        self.prev_pos = self.curr_pos - \
-            FRAME_TIME * np.asarray(velocity, float)
-
-    def might_collide_with_wall(self) -> bool:
-        return (self.curr_pos[0] - Ball.radius) - WALL_X < 5
-
-    def might_collide_with_mountain(self) -> bool:
-        ball_x, ball_y = self.curr_pos
-        radius = Ball.radius
-        return MOUNTAIN_X_MIN <= (ball_x + radius) and (ball_x - radius) <= MOUNTAIN_X_MAX \
-            and MOUNTAIN_Y_MIN <= (ball_y + radius) and (ball_y - radius) <= MOUNTAIN_Y_MAX
-
-    def draw(self) -> None:
-        arcade.draw_circle_filled(
-            *self.curr_pos, Ball.radius, arcade.color.BLACK)
-
 
 class StickConstraint():
     def __init__(self, p1: Particle, p2: Particle, rest_length: float = None, relatice_tolerance: float = 0.10):
@@ -102,27 +76,75 @@ class StickConstraint():
             self.p1.curr_pos -= delta * 0.5 * error
             self.p2.curr_pos += delta * 0.5 * error
 
-
 class RigidBody():
-    particles: List[Particle]
-    stick_constraints: List[StickConstraint]
+    def __init__(self):
+        self.particles: List[Particle] = []
+        self.stick_constraints: List[StickConstraint] = []
+    
+    @property
+    def center_x(self) -> float:
+        return np.mean([p.curr_pos[0] for p in self.particles])
+
+    @property
+    def center_y(self) -> float:
+        return np.mean([p.curr_pos[1] for p in self.particles])
+
+    @property
+    def top(self) -> float:
+        return np.max([p.curr_pos[1] for p in self.particles])
+
+    @property
+    def bottom(self) -> float:
+        return np.min([p.curr_pos[1] for p in self.particles])
+
+    @property
+    def left(self) -> float:
+        return np.min([p.curr_pos[0] for p in self.particles])
+    
+    @property
+    def right(self) -> float:
+        return np.max([p.curr_pos[0] for p in self.particles])
+
+class Ball(Particle):
+    mass: float = 1.0
+    radius: float = 5.0
+
+    def __init__(self, position: Tuple[float, float], velocity: Tuple[float, float]):
+        super().__init__(position, Ball.mass)
+        # setting the "velocity" by changing the previous position.
+        self.prev_pos = self.curr_pos - \
+            FRAME_TIME * np.asarray(velocity, float)
+
+    def might_collide_with_wall(self) -> bool:
+        return (self.curr_pos[0] - Ball.radius) - WALL_X < 5
+
+    def might_collide_with_mountain(self) -> bool:
+        ball_x, ball_y = self.curr_pos
+        radius = Ball.radius
+        return MOUNTAIN_X_MIN <= (ball_x + radius) and (ball_x - radius) <= MOUNTAIN_X_MAX \
+            and MOUNTAIN_Y_MIN <= (ball_y + radius) and (ball_y - radius) <= MOUNTAIN_Y_MAX
+
+    def draw(self) -> None:
+        arcade.draw_circle_filled(
+            *self.curr_pos, Ball.radius, arcade.color.BLACK)
+
+
+
+
 
 class ParticleSystem():
-
     # number of iterations of the verlet integration portion.
     NUM_ITERATIONS: float = 1
 
     # changing the wind every 2 seconds. (0.5 seconds is a bit too fast!)
     wind_change_interval: int = FRAME_RATE * 2
     max_wind_speed: float = 15
-    wind_speed: float = 5
+    wind_speed: float = 15
 
     def __init__(self):
         self.balls: List[Ball] = []
         self.turkeys: List[turkey.Turkey] = []
-
         self.mountain_points: List[Point] = mountain_points
-
         # counter for the number of frames.
         self._i: int = 0
 
@@ -130,18 +152,24 @@ class ParticleSystem():
         self.accumulate_forces()
         self.verlet()
         self.satisfy_constraints()
-        # if self._i % ParticleSystem.wind_change_interval == 0:
-        #     ParticleSystem.wind_speed = random.uniform(
-        #         -ParticleSystem.max_wind_speed, ParticleSystem.max_wind_speed)
-        #     print("Wind speed changed to ", ParticleSystem.wind_speed)
+        if self._i % ParticleSystem.wind_change_interval == 0:
+            ParticleSystem.wind_speed = random.uniform(
+                -ParticleSystem.max_wind_speed, ParticleSystem.max_wind_speed)
+            print("Wind speed changed to ", ParticleSystem.wind_speed)
         self._i += 1
 
     def verlet(self) -> None:
-        for p in filter(lambda p: p.can_move, self.balls):
+        for p in filter(lambda ball: ball.can_move, self.balls):
             temp = np.copy(p.curr_pos)
             p.curr_pos += (p.curr_pos - p.prev_pos) + \
                 p.acceleration * FRAME_TIME * FRAME_TIME
             p.prev_pos = temp
+        for turkey in self.turkeys:
+            for p in filter(lambda particle: particle.can_move, turkey.particle):
+                temp = np.copy(p.curr_pos)
+                p.curr_pos += (p.curr_pos - p.prev_pos) + \
+                    p.acceleration * FRAME_TIME * FRAME_TIME
+                p.prev_pos = temp
 
     def accumulate_forces(self) -> None:
         for ball in filter(lambda b: b.can_move, self.balls):
@@ -150,7 +178,9 @@ class ParticleSystem():
                     (ParticleSystem.wind_speed, GRAVITY))
             else:
                 ball.acceleration = np.asarray((0.0, GRAVITY))
-
+        for turkey in self.turkeys:
+            for particle in turkey.particles:
+                particle.acceleration = np.asarray((0.0, GRAVITY))
 
     def satisfy_constraints(self) -> None:
         for i in range(ParticleSystem.NUM_ITERATIONS):
@@ -221,7 +251,7 @@ class ParticleSystem():
 
             for turkey in self.turkeys:
                 for constraint in turkey.stick_constraints:
-                    pass
+                    constraint.apply()
 
                 for attached_p, constraint in p.attached_particles.items():
                     # Pseudo-code to satisfy (C2)
