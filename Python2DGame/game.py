@@ -198,8 +198,9 @@ class MyGame(arcade.Window):
         # TODO: can't have the turkey moving while it is also in the air!
 
         for t in self.turkeys:
+            
             # BUG: The jumping doesn't work!
-            if t.bottom > GROUND_Y + 10:
+            if t.bottom > GROUND_Y + 5:
                 # if the turkey is in the air:
                 continue
 
@@ -209,7 +210,7 @@ class MyGame(arcade.Window):
             
             if MyGame.i % random.randint(1 * FRAME_RATE, 3 * FRAME_RATE) == 0:
                 t.pacing_speed = random_speed()
-                t.velocity[0] = t.pacing_speed 
+                t.velocity[0] = t.pacing_speed
             # if t.center_x - t.radius <= WALL_X:
             #     # we want to force the turkey to move right
             #     t.pacing_speed = abs(t.pacing_speed)
@@ -217,11 +218,12 @@ class MyGame(arcade.Window):
             #     # we want to force the turkey to move left
             #     t.pacing_speed *= - abs(t.pacing_speed)
 
-            t.velocity[0] = t.pacing_speed
             #FIXME: Moving the turkey like this seems like a bad idea! (but its the only thing that works right now)
             # t.move(t.pacing_speed, 0.0)
             # Much better would be to have the pacing be some kind of acceleration or velocity:
             # print(t.velocity[0])
+            t.velocity[0] = t.pacing_speed
+            print(t.velocity)
 
     def draw_wall(self):
         """Draws the wall on the left side of the screen."""
