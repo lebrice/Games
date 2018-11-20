@@ -30,6 +30,7 @@ class Particle():
     @property
     def velocity(self) -> Tuple[float, float]:
         """ the velocity, in pixels per second. """
+        # TODO: fix the velocities to be in pixels per seconds rather than pixels per frame
         return (self.curr_pos - self.prev_pos)
     
     @velocity.setter
@@ -56,23 +57,25 @@ class StickConstraint():
             self.rest_length = rest_length
         self.tolerance_rel = relatice_tolerance
         self.tolerance_abs = relatice_tolerance * self.rest_length
+        print(self.p1.curr_pos, self.p2.curr_pos)
+        print(self.rest_length, self.tolerance_abs, self.tolerance_rel)
     
     def apply(self) -> None:
         """
         Applies the constraint, pushing the particles closer together or further appart.
         """
         delta = self.p2.curr_pos - self.p1.curr_pos
-        distance = np.linalg.norm(delta)
+        distance = max(np.linalg.norm(delta), 1e-5)
         minimum = self.rest_length - self.tolerance_abs
         maximum = self.rest_length + self.tolerance_abs
         if distance < minimum:
             # the particles are too close together!
-            error = (distance - minimum) / distance
+            error = (distance - minimum) #/ distance
             self.p1.curr_pos -= delta * 0.5 * error
             self.p2.curr_pos += delta * 0.5 * error
         elif distance > maximum:
             # the particles are too far from one another.
-            error = (distance - maximum) / distance
+            error = (distance - maximum) #/ distance
             self.p1.curr_pos -= delta * 0.5 * error
             self.p2.curr_pos += delta * 0.5 * error
 
@@ -81,6 +84,17 @@ class RigidBody():
         self.particles: List[Particle] = []
         self.stick_constraints: List[StickConstraint] = []
     
+    @property
+    def velocity(self) -> Tuple[float, float]:
+        """The average velocity of all the particles of the RigidBody."""
+        return np.mean([p.velocity for p in self.particles], axis=0)
+
+    @velocity.setter
+    def velocity(self, value: Tuple[float, float]) -> None:
+        """Sets the given velocity to all the particles at the same time."""
+        for p in self.particles:
+            p.velocity = value
+
     @property
     def center_x(self) -> float:
         return np.mean([p.curr_pos[0] for p in self.particles])
@@ -250,27 +264,22 @@ class ParticleSystem():
                 ball.curr_pos = np.min([ball.curr_pos, max_constraint], axis=0)
 
             for turkey in self.turkeys:
+                min_constraint = (0.0, GROUND_Y)
+                max_constraint = (MOUNTAIN_START_X, SCREEN_HEIGHT)
+                for particle in turkey.particles:
+                    particle.curr_pos = np.max([particle.curr_pos, min_constraint], axis=0)
+                    particle.curr_pos = np.min([particle.curr_pos, max_constraint], axis=0)
+                
                 for constraint in turkey.stick_constraints:
                     constraint.apply()
-                    
-                # min_constraint = (0, GROUND_Y)
-                # max_constraint = (SCREEN_WIDTH, SCREEN_HEIGHT)
-                if turkey.bottom < GROUND_Y:
-                    for particle in turkey.particles:
-                        if particle.curr_pos[1] < GROUND_Y:
-                            particle.curr_pos[1] = GROUND_Y
-                if turkey.top > SCREEN_HEIGHT-1:
-                    for particle in turkey.particles:
-                        if particle.curr_pos[1] > SCREEN_HEIGHT - 1:
-                            particle.curr_pos[1] = SCREEN_HEIGHT - 1
-                if turkey.left < 0:
-                    for particle in turkey.particles:
-                        if particle.curr_pos[0] < 0:
-                            particle.curr_pos[0] = 0.0
-                if turkey.right > MOUNTAIN_START_X:
-                    for particle in turkey.particles:
-                        if particle.curr_pos[1] > MOUNTAIN_START_X:
-                            particle.curr_pos[0] = MOUNTAIN_START_X
+                    # if particle.curr_pos[1] < GROUND_Y:
+                    #     particle.curr_pos[1] = GROUND_Y
+                    # if particle.curr_pos[1] > SCREEN_HEIGHT - 1:
+                    #     particle.curr_pos[1] = SCREEN_HEIGHT - 1
+                    # if particle.curr_pos[0] < 0:
+                    #     particle.curr_pos[0] = 0.0
+                    # if particle.curr_pos[0] > MOUNTAIN_START_X:
+                    #     particle.curr_pos[0] = MOUNTAIN_START_X
                 # for particle in turkey:
                     # ball.curr_pos = np.max([ball.curr_pos, min_constraint], axis=0)
                     # ball.curr_pos = np.min([ball.curr_pos, max_constraint], axis=0)

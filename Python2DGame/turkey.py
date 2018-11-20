@@ -129,7 +129,6 @@ class Turkey(RigidBody):
         for particle in self.particles:
             particle.curr_pos += change
             particle.velocity = 0
-    
 
     @property
     def velocity(self) -> Tuple[float, float]:
@@ -138,10 +137,9 @@ class Turkey(RigidBody):
 
     @velocity.setter
     def velocity(self, value: Tuple[float, float]) -> None:
-        """Gives a velocity to all the particles at the same time."""
+        """Sets the velocity to all the particles to `value`. This overwrites their previous velocity."""
         for p in self.particles:
             p.velocity = value
-
 
     def draw(self) -> None:
         segments = [segment for name, segment in self.segments.items() if name != "eye"]
