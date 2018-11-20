@@ -229,95 +229,6 @@ Prefab:
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: ec9ab3dbc7d49c047b16cf361f56a7d8, type: 2}
   m_IsPrefabAsset: 0
---- !u!1 &173955463 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 100006, guid: ec9ab3dbc7d49c047b16cf361f56a7d8,
-    type: 2}
-  m_PrefabInternal: {fileID: 173955462}
---- !u!20 &173955464 stripped
-Camera:
-  m_CorrespondingSourceObject: {fileID: 2000000, guid: ec9ab3dbc7d49c047b16cf361f56a7d8,
-    type: 2}
-  m_PrefabInternal: {fileID: 173955462}
---- !u!114 &173955465 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 11400004, guid: ec9ab3dbc7d49c047b16cf361f56a7d8,
-    type: 2}
-  m_PrefabInternal: {fileID: 173955462}
-  m_Script: {fileID: 11500000, guid: 81c9795a96c094f4cbde4d65546aa9b2, type: 3}
---- !u!114 &173955466
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInternal: {fileID: 0}
-  m_GameObject: {fileID: 173955463}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 45f5e7ee10fe4b34ebd646f9a262160e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  Camera: {fileID: 173955464}
-  motionBob:
-    HorizontalBobRange: 0.33
-    VerticalBobRange: 0.33
-    Bobcurve:
-      serializedVersion: 2
-      m_Curve:
-      - serializedVersion: 3
-        time: 0
-        value: 0
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      - serializedVersion: 3
-        time: 0.5
-        value: 1
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      - serializedVersion: 3
-        time: 1
-        value: 0
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      - serializedVersion: 3
-        time: 1.5
-        value: -1
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      - serializedVersion: 3
-        time: 2
-        value: 0
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      m_PreInfinity: 2
-      m_PostInfinity: 2
-      m_RotationOrder: 4
-    VerticaltoHorizontalRatio: 1
-  jumpAndLandingBob:
-    BobDuration: 0
-    BobAmount: 0
-  rigidbodyFirstPersonController: {fileID: 173955465}
-  StrideInterval: 1
-  RunningStrideLengthen: 0.1
 --- !u!1001 &670546467
 Prefab:
   m_ObjectHideFlags: 0
@@ -1011,7 +922,7 @@ MeshRenderer:
   m_ReflectionProbeUsage: 1
   m_RenderingLayerMask: 4294967295
   m_Materials:
-  - {fileID: 2100000, guid: 68b02271d28b54d4788b936b15d960b8, type: 2}
+  - {fileID: 2100000, guid: 5256b3369f06dd14883ff24f8141b14b, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1046,7 +957,7 @@ Transform:
   m_GameObject: {fileID: 1556008298}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -1, y: 1, z: -10}
-  m_LocalScale: {x: 1, y: 2.5, z: 10}
+  m_LocalScale: {x: 1, y: 2, z: 10}
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 7
