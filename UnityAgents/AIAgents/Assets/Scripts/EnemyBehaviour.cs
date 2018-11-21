@@ -4,7 +4,6 @@ using UnityEngine;
 
 public class EnemyBehaviour : MonoBehaviour {
     public float movementSpeed = 1.0f;
-    CharacterController controller;
     private void Awake()
     {
     }
@@ -22,11 +21,10 @@ public class EnemyBehaviour : MonoBehaviour {
     private void FixedUpdate()
     {
     }
-
-
+    
     private void OnTriggerEnter(Collider other)
     {
-        Debug.Log("Enemy just collided with " + other.tag);
+        Debug.Log("Enemy just triggered with " + other.tag);
         if (other.tag == "MiddleObstacle")
         {
 

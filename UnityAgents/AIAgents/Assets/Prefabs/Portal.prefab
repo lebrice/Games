@@ -22,11 +22,11 @@ GameObject:
   - component: {fileID: 33091979618545638}
   - component: {fileID: 23254750063431052}
   m_Layer: 0
-  m_Name: waypoint1
+  m_Name: waypoint3
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
+  m_StaticEditorFlags: 4294967287
   m_IsActive: 1
 --- !u!1 &1985959873655180
 GameObject:
@@ -47,7 +47,7 @@ GameObject:
   m_TagString: Portal
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
-  m_StaticEditorFlags: 8
+  m_StaticEditorFlags: 4294967295
   m_IsActive: 1
 --- !u!4 &4762105579813168
 Transform:
@@ -56,7 +56,7 @@ Transform:
   m_PrefabInternal: {fileID: 100100000}
   m_GameObject: {fileID: 1985959873655180}
   m_LocalRotation: {x: -0, y: 1, z: -0, w: 0}
-  m_LocalPosition: {x: 5.5, y: 0.9, z: 10}
+  m_LocalPosition: {x: -5.5, y: 0.9, z: 10}
   m_LocalScale: {x: 1.5, y: 1.8, z: 0.2}
   m_Children:
   - {fileID: 4833025839941602}
@@ -70,7 +70,7 @@ Transform:
   m_PrefabInternal: {fileID: 100100000}
   m_GameObject: {fileID: 1270230250713566}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: -0.45, z: 1}
+  m_LocalPosition: {x: 0, y: -0.45, z: 2}
   m_LocalScale: {x: 1, y: 0.01, z: 5}
   m_Children: []
   m_Father: {fileID: 4762105579813168}

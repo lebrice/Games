@@ -39,6 +39,7 @@ public class PortalBehaviour : MonoBehaviour {
     private void OnTriggerEnter(Collider other)
     {
         if(other.tag == "Player" || other.tag == "Enemy"){
+            Debug.Log(other.tag + " just stepped into a portal.");
             var position = this.destination.transform.position;
             var direction = this.destination.transform.forward;
             var spawnPoint = position + SpawnOffset * direction;
