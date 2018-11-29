@@ -15,22 +15,24 @@ public enum AgentRole
     Social,
     None,
 }
-public class VehicleBehaviour : MonoBehaviour {
+public class VehicleBehaviour : MonoBehaviour
+{
 
-    
-    public float maxForce = 100f;
+
+    public float maxForce = 10f;
     public float maxSpeed = 5f;
 
     //public Vector2 position = Vector2.zero;
     //public Vector2 velocity = Vector2.zero;
-    
+
     public static float radius = 0.5f;
     [HideInInspector]
     public Vector2 forward;
     [HideInInspector]
     public Vector2 side;
-    
-    private Vector2 steering;
+
+    private Vector2 steering = Vector2.zero;
+    private Vector2 steeringCollisionAvoidance = Vector2.zero;
 
     public VehicleState state;
     public AgentRole role;
@@ -39,6 +41,7 @@ public class VehicleBehaviour : MonoBehaviour {
     public Rigidbody2D rigidBody;
     private SpriteRenderer spriteRenderer;
     private CircleCollider2D circleCollider;
+    private BoxCollider2D boxCollider;
     public Vector2 target;
 
     public void Awake()
@@ -47,6 +50,7 @@ public class VehicleBehaviour : MonoBehaviour {
         spriteRenderer = GetComponent<SpriteRenderer>();
         circleCollider = GetComponent<CircleCollider2D>();
         radius = circleCollider.radius;
+        boxCollider = GetComponent<BoxCollider2D>();
     }
 
     // Use this for initialization
@@ -72,7 +76,6 @@ public class VehicleBehaviour : MonoBehaviour {
         }
     }
 
-
     void FixedUpdate()
     {
         if (role == AgentRole.None)
@@ -88,10 +91,12 @@ public class VehicleBehaviour : MonoBehaviour {
         //Debug.Log("Role: " + role + " Target: " + target + " Steering: " + steering);
         rigidBody.velocity = Vector2.ClampMagnitude(rigidBody.velocity, maxSpeed);
         rigidBody.AddForce(steeringForce);
-
         Vector2 position = transform.position;
         Vector2 velocity = rigidBody.velocity;
-        transform.right = velocity.normalized;
+        
+        var angle = Mathf.Atan2(velocity.y, velocity.x) * Mathf.Rad2Deg;
+        transform.rotation = Quaternion.AngleAxis(angle, Vector3.forward);
+
         //var acceleration = steeringForce * inverseMass;
         //velocity = Vector2.ClampMagnitude(velocity + acceleration, maxSpeed);
         //position += velocity * Time.deltaTime;
@@ -160,7 +165,7 @@ public class VehicleBehaviour : MonoBehaviour {
         /// Goal is that T should tend to 0 when we are aiming at a target and they are also
         /// aiming towards us...
         float dot = Vector2.Dot(forward, quarry.forward);
-        float angleFactor = (dot + 1) / 2; 
+        float angleFactor = (dot + 1) / 2;
 
         float T = distanceFactor * angleFactor;
         // project the quarry's velocity (scaled by T) to estimate the future positiion.
@@ -173,18 +178,30 @@ public class VehicleBehaviour : MonoBehaviour {
         Flee(target);
     }
 
-    private void OnTriggerEnter2D(Collider2D collision)
+    private void OnTriggerEnter2D(Collider2D other)
     {
-        if (collision.CompareTag("Door")){
-            var door = collision.gameObject;
-            GameManager.instance.AgentReachedDoor(this, door);
+        Debug.Log(name + " was triggered by" + other.name);
+        if (other.CompareTag("Obstacle"))
+        {
+            //Debug.Log("About to hit an obstacle: " + other.name);
+            var center = other.transform.position;
+            var toObstacle = other.transform.position - transform.position;
+            var projection = Vector2.Dot(toObstacle, transform.right);
+
+            var scalingFactor = projection * (5 / toObstacle.magnitude);
+            var steeringCA = - transform.right * scalingFactor * maxForce;
+            Debug.Log("SteeringCollisionAvoidance: " + steeringCA.magnitude);
+            var obstacle = other.GetComponent<ObstacleBehaviour>();
+            //var coll = collision.GetComponent<Collider2D>();
         }
     }
 
     // Update is called once per frame
-    void Update () {
-		
-	}   
+    void Update()
+    {
+        Vector3 forward = transform.forward * 10;
+        Debug.DrawRay(transform.position, forward, color: Color.black, duration: 0.5f);
+    }
 }
 
 /// <summary>

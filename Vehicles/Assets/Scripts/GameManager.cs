@@ -17,7 +17,8 @@ public class GameManager : MonoBehaviour
     public int numberOfWanderingAgents = 1;
     [Range(1, 10)]
     public int numberOfTravellingAgents = 1;
-
+    [Range(1, 5)]
+    public float ObstaclesAverageRadius = 3.0f;
     public IList<VehicleBehaviour> vehicles = new List<VehicleBehaviour>();
 
     public VehicleBehaviour travellerPrefab;
@@ -55,10 +56,14 @@ public class GameManager : MonoBehaviour
     public void AgentReachedDoor(VehicleBehaviour agent, GameObject door)
     {
         Debug.Log("Agent reached a door: " + agent.name);
-        if (agent.role == AgentRole.Traveller)
+        if (agent.role == AgentRole.Traveller && door.name != doorRight.name)
         {
-            Vector2 spawnPosition;
-            while (!TryGetAvailableRandomSpawnPosition(VehicleBehaviour.radius, out spawnPosition));
+            Vector2 spawnPosition = doorRight.transform.position;
+            //if (!TryGetAvailableRandomSpawnPosition(VehicleBehaviour.radius, out spawnPosition))
+            //{
+            //    Debug.LogError("Couldn't place a new Agent! (Are there perhaps too many objects?)");
+            //}
+
             var rotation = Quaternion.Euler(0, 0, Random.Range(-180f, 180f));
             agent.transform.SetPositionAndRotation(spawnPosition, rotation);
             agent.target = Random.Range(0, 2) == 0 ? doorLeftTop.position : doorLeftBottom.position;
@@ -78,13 +83,16 @@ public class GameManager : MonoBehaviour
     {
         for (int i=0; i<numberOfObstacles; i++)
         {
-            var obstacleRadius = 3.0f;
             Vector2 obstacleCenter;
             // Find somewhere to place the obstacle.
-            while (!TryGetAvailableRandomSpawnPosition(obstacleRadius, out obstacleCenter)) ;
+            var obstacleRadius = ObstaclesAverageRadius * Random.Range(0.75f, 1.25f);
+            if (!TryGetAvailableRandomSpawnPosition(obstacleRadius, out obstacleCenter, maxAttempts: 100))
+            {
+                Debug.LogError("There seems to be not enough space to guarantee that obstacles do not overlap!");
+            }
             
             var obstacle = Instantiate<ObstacleBehaviour>(obstaclePrefab, obstacleCenter, Quaternion.identity, transform);
-            obstacle.numberOfVertices = 5;
+            obstacle.numberOfVertices = Random.Range(4, 17);
             obstacle.radius = obstacleRadius;
         }
     }
@@ -94,6 +102,7 @@ public class GameManager : MonoBehaviour
 
         // Check that there are no other objects colliding with this one.
         var colliders = new List<Collider2D>(GetComponentsInChildren<Collider2D>());
+        Debug.Log("There are a total of " + colliders.Count + " Colliders.");
         var go = new GameObject();
         var coll = go.AddComponent<CircleCollider2D>();
         coll.radius = objectRadius;
@@ -101,26 +110,23 @@ public class GameManager : MonoBehaviour
         var found = false;
         for (int attempt = 0; attempt < maxAttempts && !found; attempt++)
         {
+            // test out the potential new position.
             coll.offset = new Vector2(
                 Random.Range(xMin + objectRadius, xMax - objectRadius),
                 Random.Range(yMin + objectRadius, yMax - objectRadius)
             );
 
-            found = colliders.TrueForAll((other) => coll.Distance(other).distance < minDistanceBetweenObjects);
-            //found = true;
-            //foreach (var col in colliders)
-            //{
-            //    // check if the colliders have enough space between them.
-            //    if (coll.Distance(col).distance < minDistanceBetweenObjects)
-            //    {
-            //        found = false;
-            //        break;
-            //    }
-            //}
+            found = colliders.TrueForAll((other) => 
+                {
+                    var d = coll.Distance(other);
+                    //Debug.Log("Attempt " + attempt + "Distance to "+other.name+": " + d.distance + " overlapped: " + d.isOverlapped);
+                    return !d.isOverlapped && d.distance > minDistanceBetweenObjects;
+                }
+            );
         }
         spawnPosition = coll.offset;
         if (!found) {
-            Debug.Log("Unable to find a placement option after " + maxAttempts + " attempts.");
+            //Debug.LogWarning("Unable to find a placement location with no overlap. (" + maxAttempts + " attempts)");
         }
         Destroy(go);
         return found;
@@ -130,9 +136,12 @@ public class GameManager : MonoBehaviour
     {
         for (int i = 0; i < numberOfTravellingAgents; i++)
         {
-            Vector2 spawnPosition = Vector2.zero;
+            Vector2 spawnPosition = doorRight.position;
             var newTraveller = Instantiate<VehicleBehaviour>(travellerPrefab, spawnPosition, Quaternion.identity, this.transform);
-            while (!TryGetAvailableRandomSpawnPosition(VehicleBehaviour.radius, out spawnPosition));
+            if(!TryGetAvailableRandomSpawnPosition(VehicleBehaviour.radius, out spawnPosition))
+            {
+                Debug.LogWarning("Unable able to find a free spot where an agent could be placed! (Are there perhaps too many obstacles ?)");
+            }
 
             int choice = Random.Range(0, 2);
             newTraveller.target = choice == 0 ? doorLeftTop.position : doorLeftBottom.position;
