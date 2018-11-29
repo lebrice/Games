@@ -2,56 +2,119 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+
 public enum VehicleState
 {
     SEEK, FLEE, PURSUIT, OFFSET_PURSUIT, ARRIVAL
 }
 
+public enum AgentRole
+{
+    Traveller,
+    Wanderer,
+    Social,
+    None,
+}
 public class VehicleBehaviour : MonoBehaviour {
-    static float mass = 1;
-    static float inverseMass = 1 / mass;
 
-    const float maxForce = 10;
-    const float maxSpeed = 100;
+    
+    public float maxForce = 100f;
+    public float maxSpeed = 5f;
 
-    public Vector2 position = Vector2.zero;
-    public Vector2 velocity = Vector2.zero;
-
+    //public Vector2 position = Vector2.zero;
+    //public Vector2 velocity = Vector2.zero;
+    
+    public static float radius = 0.5f;
+    [HideInInspector]
     public Vector2 forward;
+    [HideInInspector]
     public Vector2 side;
     
-    public Vector2 steering;
-    
+    private Vector2 steering;
+
     public VehicleState state;
+    public AgentRole role;
 
-    public GameManager 
+    [HideInInspector]
+    public Rigidbody2D rigidBody;
+    private SpriteRenderer spriteRenderer;
+    private CircleCollider2D circleCollider;
+    public Vector2 target;
 
-    void Awake()
+    public void Awake()
     {
+        rigidBody = GetComponent<Rigidbody2D>();
+        spriteRenderer = GetComponent<SpriteRenderer>();
+        circleCollider = GetComponent<CircleCollider2D>();
+        radius = circleCollider.radius;
+    }
 
+    // Use this for initialization
+    void Start()
+    {
+        spriteRenderer.color = GetColor();
+        Debug.Log("Agent Starting. My role is:" + role.ToString() + " Target is " + target);
+        gameObject.name = role.ToString();
+    }
+
+    private Color GetColor()
+    {
+        switch (role)
+        {
+            case AgentRole.Traveller:
+                return Color.red;
+            case AgentRole.Social:
+                return Color.yellow;
+            case AgentRole.Wanderer:
+                return Color.green;
+            default:
+                return Color.white;
+        }
     }
 
 
     void FixedUpdate()
     {
+        if (role == AgentRole.None)
+        {
+            return;
+        }
+        else if (role == AgentRole.Traveller)
+        {
+            Seek(target);
+        }
         var steeringForce = Vector2.ClampMagnitude(steering, maxForce);
-        var acceleration = steeringForce * inverseMass;
-        velocity = Vector2.ClampMagnitude(velocity + acceleration, maxSpeed);
-        position += velocity;
 
-        forward = velocity.normalized;
-        side = Vector2.Perpendicular(forward);
+        //Debug.Log("Role: " + role + " Target: " + target + " Steering: " + steering);
+        rigidBody.velocity = Vector2.ClampMagnitude(rigidBody.velocity, maxSpeed);
+        rigidBody.AddForce(steeringForce);
 
+        Vector2 position = transform.position;
+        Vector2 velocity = rigidBody.velocity;
+        transform.right = velocity.normalized;
+        //var acceleration = steeringForce * inverseMass;
+        //velocity = Vector2.ClampMagnitude(velocity + acceleration, maxSpeed);
+        //position += velocity * Time.deltaTime;
+        //forward = velocity.normalized;
+        //side = Vector2.Perpendicular(forward);
+
+        //transform.position = position;
+        //// because of the way "right" means the red axis.
+        //transform.right = forward;
     }
 
     private void Seek(Vector2 target)
     {
-        var desiredVelocity = (position - target).normalized * maxSpeed;
+        Vector2 position = transform.position;
+        Vector2 velocity = rigidBody.velocity;
+        var desiredVelocity = (target - position).normalized * maxSpeed;
         steering = desiredVelocity - velocity;
     }
 
     private void Flee(Vector2 target)
     {
+        Vector2 position = transform.position;
+        Vector2 velocity = rigidBody.velocity;
         var desiredVelocity = (target - position).normalized * maxSpeed;
         steering = desiredVelocity - velocity;
     }
@@ -72,18 +135,27 @@ public class VehicleBehaviour : MonoBehaviour {
 
     private void Arrival(Vector2 target)
     {
-        const float slowing_distance = 100;
+        const float slowing_distance = 2;
+        Vector2 position = transform.position;
+        Vector2 velocity = rigidBody.velocity;
+
         Vector2 target_offset = target - position;
         float distance = target_offset.magnitude;
         float ramped_speed = maxSpeed * (distance / slowing_distance);
         float clipped_speed = Mathf.Min(ramped_speed, maxSpeed);
         Vector2 desired_velocity = (clipped_speed / distance) * target_offset;
+
         steering = desired_velocity - velocity;
     }
 
     private Vector2 EstimateFuturePosition(VehicleBehaviour quarry)
-    {        
-        float distanceFactor = (position - quarry.position).magnitude;
+    {
+
+        Vector2 position = transform.position;
+        Vector2 velocity = rigidBody.velocity;
+        Vector2 quarryPosition = quarry.transform.position;
+        Vector2 quarryVelocity = quarry.rigidBody.velocity;
+        float distanceFactor = (position - quarryPosition).magnitude;
         /// @TODO: need to check the angle factor definition. 
         /// Goal is that T should tend to 0 when we are aiming at a target and they are also
         /// aiming towards us...
@@ -92,7 +164,7 @@ public class VehicleBehaviour : MonoBehaviour {
 
         float T = distanceFactor * angleFactor;
         // project the quarry's velocity (scaled by T) to estimate the future positiion.
-        return quarry.position + quarry.velocity * T;
+        return quarryPosition + quarryVelocity * T;
     }
 
     private void Evasion(VehicleBehaviour quarry)
@@ -101,15 +173,18 @@ public class VehicleBehaviour : MonoBehaviour {
         Flee(target);
     }
 
-    // Use this for initialization
-    void Start () {
+    private void OnTriggerEnter2D(Collider2D collision)
+    {
+        if (collision.CompareTag("Door")){
+            var door = collision.gameObject;
+            GameManager.instance.AgentReachedDoor(this, door);
+        }
+    }
+
+    // Update is called once per frame
+    void Update () {
 		
-	}
-	
-	// Update is called once per frame
-	void Update () {
-		
-	}
+	}   
 }
 
 /// <summary>
