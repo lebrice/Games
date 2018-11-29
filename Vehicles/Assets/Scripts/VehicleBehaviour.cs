@@ -177,6 +177,7 @@ public class VehicleBehaviour : MonoBehaviour
         Vector2 target = EstimateFuturePosition(quarry);
         Flee(target);
     }
+    private Collider2D[] collisions = new Collider2D[100];
 
     private void OnTriggerEnter2D(Collider2D other)
     {
@@ -184,23 +185,41 @@ public class VehicleBehaviour : MonoBehaviour
         if (other.CompareTag("Obstacle"))
         {
             //Debug.Log("About to hit an obstacle: " + other.name);
-            var center = other.transform.position;
-            var toObstacle = other.transform.position - transform.position;
-            var projection = Vector2.Dot(toObstacle, transform.right);
-
-            var scalingFactor = projection * (5 / toObstacle.magnitude);
-            var steeringCA = - transform.right * scalingFactor * maxForce;
-            Debug.Log("SteeringCollisionAvoidance: " + steeringCA.magnitude);
-            var obstacle = other.GetComponent<ObstacleBehaviour>();
-            //var coll = collision.GetComponent<Collider2D>();
+            CollisionAvoidance(other);
         }
+    }
+
+    private void TriggerStay2D(Collider2D other)
+    {
+        if (other.CompareTag("Obstacle"))
+        {
+            CollisionAvoidance(other);
+        }
+    }
+
+    private void CollisionAvoidance(Collider2D other)
+    {
+        //Debug.Log("About to hit an obstacle: " + other.name);
+        var center = other.transform.position;
+        //var numCollisions = boxCollider.GetContacts(collisions);
+        var toObstacle = other.transform.position - transform.position;
+        var projection = Vector2.Dot(toObstacle, transform.right);
+
+        var scalingFactor = projection * (5 / toObstacle.magnitude);
+        Vector2 steeringCA = -transform.right * scalingFactor * maxForce;
+        Debug.Log("SteeringCollisionAvoidance: " + steeringCA);
+
+        steering += steeringCA;
+
+        var obstacle = other.GetComponent<ObstacleBehaviour>();
+        //var coll = collision.GetComponent<Collider2D>();
     }
 
     // Update is called once per frame
     void Update()
     {
-        Vector3 forward = transform.forward * 10;
-        Debug.DrawRay(transform.position, forward, color: Color.black, duration: 0.5f);
+        Debug.Log("Right: " +  transform.right + "Up: " + transform.up);
+        Debug.DrawRay(transform.position, transform.right * 10, color: Color.black, duration: 0.5f);
     }
 }
 
