@@ -11,13 +11,9 @@ public class ObstacleBehaviour : MonoBehaviour {
     public float radius;
     public Vector2[] vertices;
     public Material material;
-    private void Awake()
-    {
-        
-    }
-
+    
     // Use this for initialization
-    void Start()
+    void Awake()
     {
         Vector2 center = transform.position;
         Debug.Log("Starting ObstacleBehaviour. # of vertices: " + numberOfVertices + " radius: " + radius + " Center: " + center);

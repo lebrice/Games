@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class GameManager : MonoBehaviour
@@ -28,7 +29,7 @@ public class GameManager : MonoBehaviour
     public Transform doorLeftBottom;
     public Transform doorRight;
 
-    public List<GameObject> obstacles;
+    public List<ObstacleBehaviour> obstacles;
 
     //Awake is always called before any Start functions
     void Awake()
@@ -81,19 +82,23 @@ public class GameManager : MonoBehaviour
 
     private void CreateObstacles()
     {
+        obstacles = new List<ObstacleBehaviour>();
         for (int i=0; i<numberOfObstacles; i++)
         {
             Vector2 obstacleCenter;
             // Find somewhere to place the obstacle.
             var obstacleRadius = ObstaclesAverageRadius * Random.Range(0.75f, 1.25f);
+            obstaclePrefab.radius = obstacleRadius;
+            obstaclePrefab.numberOfVertices = Random.Range(4, 17);
             if (!TryGetAvailableRandomSpawnPosition(obstacleRadius, out obstacleCenter, maxAttempts: 100))
             {
                 Debug.LogError("There seems to be not enough space to guarantee that obstacles do not overlap!");
             }
             
             var obstacle = Instantiate<ObstacleBehaviour>(obstaclePrefab, obstacleCenter, Quaternion.identity, transform);
-            obstacle.numberOfVertices = Random.Range(4, 17);
-            obstacle.radius = obstacleRadius;
+            //obstacle.numberOfVertices = Random.Range(4, 17);
+            //obstacle.radius = obstacleRadius;
+            obstacles.Add(obstacle);
         }
     }
 
@@ -101,22 +106,22 @@ public class GameManager : MonoBehaviour
     {
 
         // Check that there are no other objects colliding with this one.
-        var colliders = new List<Collider2D>(GetComponentsInChildren<Collider2D>());
+        //var colliders = new List<Collider2D>(GetComponentsInChildren<PolygonCollider2D>());
+        var colliders = obstacles.Select(o => o.GetComponent<Collider2D>()).ToList();
         Debug.Log("There are a total of " + colliders.Count + " Colliders.");
         var go = new GameObject();
         var coll = go.AddComponent<CircleCollider2D>();
         coll.radius = objectRadius;
-
         var found = false;
         for (int attempt = 0; attempt < maxAttempts && !found; attempt++)
         {
             // test out the potential new position.
             coll.offset = new Vector2(
-                Random.Range(xMin + objectRadius, xMax - objectRadius),
-                Random.Range(yMin + objectRadius, yMax - objectRadius)
+                Random.Range(xMin + objectRadius + minDistanceBetweenObjects, xMax - objectRadius - minDistanceBetweenObjects),
+                Random.Range(yMin + objectRadius + minDistanceBetweenObjects, yMax - objectRadius - minDistanceBetweenObjects)
             );
 
-            found = colliders.TrueForAll((other) => 
+            found = colliders.Count == 0 || colliders.TrueForAll((other) => 
                 {
                     var d = coll.Distance(other);
                     //Debug.Log("Attempt " + attempt + "Distance to "+other.name+": " + d.distance + " overlapped: " + d.isOverlapped);
@@ -126,7 +131,7 @@ public class GameManager : MonoBehaviour
         }
         spawnPosition = coll.offset;
         if (!found) {
-            //Debug.LogWarning("Unable to find a placement location with no overlap. (" + maxAttempts + " attempts)");
+            Debug.LogWarning("Unable to find a placement location with no overlap. (" + maxAttempts + " attempts)");
         }
         Destroy(go);
         return found;

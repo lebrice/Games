@@ -7,7 +7,7 @@ using UnityEngine;
 /// </summary>
 public class ColliderCreator : MonoBehaviour
 {
-    void Start()
+    void Awake()
     {
         // Stop if no mesh filter exists or there's already a collider
         if (GetComponent<PolygonCollider2D>() || GetComponent<MeshFilter>() == null)

@@ -3,6 +3,12 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class DoorBehaviour : MonoBehaviour {
+    private BoxCollider2D boxCollider;
+    
+    void Awake()
+    {
+        boxCollider = GetComponent<BoxCollider2D>();
+    }
     
     // Use this for initialization
     void Start () {
@@ -14,13 +20,19 @@ public class DoorBehaviour : MonoBehaviour {
 		
 	}
 
+    
+
     private void OnTriggerEnter2D(Collider2D other)
     {
+        Debug.Log(name + " was triggered by" + other.name);
         if (other.CompareTag("Vehicle"))
         {
-            Debug.Log(name + " was triggered by" + other.name);
-            var agent = other.GetComponent<VehicleBehaviour>();
-            GameManager.instance.AgentReachedDoor(agent, gameObject);
+            var circleCollider = other.GetComponent<CircleCollider2D>();
+            if(other == circleCollider)
+            {
+                var agent = other.GetComponent<VehicleBehaviour>();
+                GameManager.instance.AgentReachedDoor(agent, gameObject);
+            }
         }
     }
 }

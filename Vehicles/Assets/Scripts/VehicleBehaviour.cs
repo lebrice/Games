@@ -1,11 +1,12 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public enum VehicleState
 {
-    SEEK, FLEE, PURSUIT, OFFSET_PURSUIT, ARRIVAL
+    SEEK, FLEE, PURSUIT, OFFSET_PURSUIT, ARRIVAL, COLLISION_AVOIDANCE
 }
 
 public enum AgentRole
@@ -44,8 +45,12 @@ public class VehicleBehaviour : MonoBehaviour
     private BoxCollider2D boxCollider;
     public Vector2 target;
 
+    public List<Collider2D> collisionAvoidanceObjects;
+
     public void Awake()
     {
+        //collisions = new Collider2D[100];
+        collisionAvoidanceObjects = new List<Collider2D>();
         rigidBody = GetComponent<Rigidbody2D>();
         spriteRenderer = GetComponent<SpriteRenderer>();
         circleCollider = GetComponent<CircleCollider2D>();
@@ -76,6 +81,8 @@ public class VehicleBehaviour : MonoBehaviour
         }
     }
 
+
+    private Collider2D[] collisions;
     void FixedUpdate()
     {
         if (role == AgentRole.None)
@@ -84,18 +91,28 @@ public class VehicleBehaviour : MonoBehaviour
         }
         else if (role == AgentRole.Traveller)
         {
-            Seek(target);
+            if (state == VehicleState.COLLISION_AVOIDANCE)
+            {
+                foreach(var otherCollider in collisionAvoidanceObjects)
+                {
+                    CollisionAvoidance(otherCollider);
+                }
+            }
+            else
+            {
+                Seek(target);
+            }
         }
         var steeringForce = Vector2.ClampMagnitude(steering, maxForce);
-
         //Debug.Log("Role: " + role + " Target: " + target + " Steering: " + steering);
         rigidBody.velocity = Vector2.ClampMagnitude(rigidBody.velocity, maxSpeed);
         rigidBody.AddForce(steeringForce);
         Vector2 position = transform.position;
         Vector2 velocity = rigidBody.velocity;
-        
+
         var angle = Mathf.Atan2(velocity.y, velocity.x) * Mathf.Rad2Deg;
         transform.rotation = Quaternion.AngleAxis(angle, Vector3.forward);
+        //transform.right = velocity.normalized;
 
         //var acceleration = steeringForce * inverseMass;
         //velocity = Vector2.ClampMagnitude(velocity + acceleration, maxSpeed);
@@ -114,6 +131,7 @@ public class VehicleBehaviour : MonoBehaviour
         Vector2 velocity = rigidBody.velocity;
         var desiredVelocity = (target - position).normalized * maxSpeed;
         steering = desiredVelocity - velocity;
+        Debug.DrawRay(transform.position, steering, Color.green, 0.2f);
     }
 
     private void Flee(Vector2 target)
@@ -177,7 +195,6 @@ public class VehicleBehaviour : MonoBehaviour
         Vector2 target = EstimateFuturePosition(quarry);
         Flee(target);
     }
-    private Collider2D[] collisions = new Collider2D[100];
 
     private void OnTriggerEnter2D(Collider2D other)
     {
@@ -185,32 +202,80 @@ public class VehicleBehaviour : MonoBehaviour
         if (other.CompareTag("Obstacle"))
         {
             //Debug.Log("About to hit an obstacle: " + other.name);
-            CollisionAvoidance(other);
+            state = VehicleState.COLLISION_AVOIDANCE;
+            collisionAvoidanceObjects.Add(other);
         }
+        else if (other.CompareTag("Vehicle"))
+        {
+            collisionAvoidanceObjects.Add(other);
+        }
+    }
+
+    private void OnTriggerExit2D(Collider2D other)
+    {
+        collisionAvoidanceObjects.Remove(other);
+        state = collisionAvoidanceObjects.Count == 0 ? VehicleState.SEEK : VehicleState.COLLISION_AVOIDANCE;
     }
 
     private void TriggerStay2D(Collider2D other)
     {
-        if (other.CompareTag("Obstacle"))
-        {
-            CollisionAvoidance(other);
-        }
     }
 
     private void CollisionAvoidance(Collider2D other)
     {
-        //Debug.Log("About to hit an obstacle: " + other.name);
+        //var numCollisions = boxCollider.OverlapCollider(filter, collisions);
+        ////Debug.Log("Collisions:" + numCollisions);
+        ////Debug.Log("Collisions :" + string.Join(",", collisions.Select(i => i.name).ToArray()));
+        //var realCollisions = new List<Collider2D>();
+        //for (int i = 0; i < numCollisions; i++)
+        //{
+        //    if (collisions[i].gameObject != gameObject)
+        //    {
+        //        realCollisions.Add(collisions[i]);
+        //    }
+        //}
+        //numCollisions = realCollisions.Count;
+        ////Debug.Log("Real collisions: " + numCollisions);
+        //if (numCollisions > 0)
+        //{
+        //    var distances = new float[numCollisions];
+        //    float distance = 0, minDistance = float.MaxValue;
+        //    int minIndex = 0;
+        //    for (int i = 0; i < numCollisions; i++)
+        //    {
+        //        distance = circleCollider.Distance(realCollisions[i]).distance;
+        //        if (distance < minDistance)
+        //        {
+        //            minDistance = distance;
+        //            minIndex = i;
+        //        }
+        //    }
+        //    //Debug.Log("Closest obstacle: " + realCollisions[minIndex].name);
+        //    CollisionAvoidance(realCollisions[minIndex]);
+        //}
+        Debug.Log("Collision Avoidance between " + name + " and: " + other.name);
         var center = other.transform.position;
         //var numCollisions = boxCollider.GetContacts(collisions);
         var toObstacle = other.transform.position - transform.position;
-        var projection = Vector2.Dot(toObstacle, transform.right);
+        var projection = Vector2.Dot(toObstacle, transform.up);
 
-        var scalingFactor = projection * (5 / toObstacle.magnitude);
-        Vector2 steeringCA = -transform.right * scalingFactor * maxForce;
-        Debug.Log("SteeringCollisionAvoidance: " + steeringCA);
+        var scalingFactor = projection * (5 / Mathf.Max(toObstacle.magnitude, 0.1f));
+        Vector2 steeringCA = -transform.up * scalingFactor * maxForce;
+        steeringCA = Vector2.ClampMagnitude(steeringCA, maxForce);
+        rigidBody.AddForce(steeringCA);
+        Debug.DrawRay(transform.position, steeringCA, Color.blue, 0.2f);
+        
 
-        steering += steeringCA;
+        var brakingFactor = 0.1f * Mathf.Max(rigidBody.velocity.sqrMagnitude, 0.1f);
+        Vector2 brakingForce =  -1 * brakingFactor * transform.right;
+        // The braking force is clamped higher than the steering and turning forces.
+        brakingForce = Vector2.ClampMagnitude(brakingForce, 2 * maxForce);
+        rigidBody.AddForce(brakingForce);
+        Debug.DrawRay(transform.position, brakingForce, Color.cyan, 0.2f);
 
+
+
+        Debug.DrawRay(transform.position, steering, Color.white, 0.2f);
         var obstacle = other.GetComponent<ObstacleBehaviour>();
         //var coll = collision.GetComponent<Collider2D>();
     }
@@ -218,8 +283,8 @@ public class VehicleBehaviour : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        Debug.Log("Right: " +  transform.right + "Up: " + transform.up);
-        Debug.DrawRay(transform.position, transform.right * 10, color: Color.black, duration: 0.5f);
+        //Debug.Log("Right: " +  transform.right + "Up: " + transform.up);
+        Debug.DrawRay(transform.position, transform.right * 2, color: Color.black, duration: 0.5f);
     }
 }
 
