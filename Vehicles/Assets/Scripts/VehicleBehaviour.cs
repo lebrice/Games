@@ -103,37 +103,28 @@ public class VehicleBehaviour : MonoBehaviour
 
     void FixedUpdate()
     {
+        
         if (role == AgentRole.None || state == VehicleState.STILL)
         {
             rigidBody.velocity = Vector2.zero;
             return;
         }
-        else if (role == AgentRole.Traveller)
+        if (state == VehicleState.COLLISION_AVOIDANCE)
         {
-            if (state == VehicleState.COLLISION_AVOIDANCE)
+            foreach (var otherCollider in collisionAvoidanceObjects)
             {
-                foreach (var otherCollider in collisionAvoidanceObjects)
-                {
-                    CollisionAvoidance(otherCollider);
-                }
+                CollisionAvoidance(otherCollider);
             }
-            else
-            {
-                Arrival(target);
-            }
+        }
+        if (role == AgentRole.Traveller)
+        {
+            Arrival(target);
         }
         else if (role == AgentRole.Wanderer)
         {
             if (state == VehicleState.WANDERING)
             {
                 Wander();
-            }
-            else if (state == VehicleState.COLLISION_AVOIDANCE)
-            {
-                foreach (var otherObject in collisionAvoidanceObjects)
-                {
-                    CollisionAvoidance(otherObject);
-                }
             }
             else if (state == VehicleState.BLOCK)
             {

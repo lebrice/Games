@@ -148,6 +148,7 @@ public class GameManager : MonoBehaviour
             newTraveller.target = choice == 0 ? doorLeftTop.position : doorLeftBottom.position;
             newTraveller.role = AgentRole.Traveller;
             newTraveller.state = VehicleState.SEEK;
+            newTraveller.previousState = VehicleState.SEEK;
             newTraveller.name = "Traveller" + i;
             Debug.Log("Spawning a new Agent. " + "Role: " + newTraveller.role + " target: " + newTraveller.target);
             vehicles.Add(newTraveller);
