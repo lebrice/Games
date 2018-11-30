@@ -102,7 +102,7 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    private bool TryGetAvailableRandomSpawnPosition(float objectRadius, out Vector2 spawnPosition, int maxAttempts = 10, float minDistanceBetweenObjects = 1.0f)
+    public bool TryGetAvailableRandomSpawnPosition(float objectRadius, out Vector2 spawnPosition, int maxAttempts = 10, float minDistanceBetweenObjects = 1.0f)
     {
 
         // Check that there are no other objects colliding with this one.
@@ -148,7 +148,9 @@ public class GameManager : MonoBehaviour
             newTraveller.target = choice == 0 ? doorLeftTop.position : doorLeftBottom.position;
             newTraveller.role = AgentRole.Traveller;
             newTraveller.state = VehicleState.SEEK;
+            newTraveller.name = "Traveller" + i;
             Debug.Log("Spawning a new Agent. " + "Role: " + newTraveller.role + " target: " + newTraveller.target);
+            vehicles.Add(newTraveller);
         }
     }
 
@@ -165,7 +167,9 @@ public class GameManager : MonoBehaviour
 
             newWanderer.role = AgentRole.Wanderer;
             newWanderer.state = VehicleState.WANDERING;
+            newWanderer.name = "Wanderer" + i;
             Debug.Log("Spawning a new Agent. " + "Role: " + newWanderer.role + " target: " + newWanderer.target);
+            vehicles.Add(newWanderer);
         }
     }
 

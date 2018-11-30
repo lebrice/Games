@@ -24,7 +24,7 @@ public class DoorBehaviour : MonoBehaviour {
 
     private void OnTriggerEnter2D(Collider2D other)
     {
-        Debug.Log(name + " was triggered by" + other.name);
+        //Debug.Log(name + " was triggered by" + other.name);
         if (other.CompareTag("Vehicle"))
         {
             var circleCollider = other.GetComponent<CircleCollider2D>();
