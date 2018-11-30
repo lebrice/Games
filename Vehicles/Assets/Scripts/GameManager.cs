@@ -22,7 +22,7 @@ public class GameManager : MonoBehaviour
     public float ObstaclesAverageRadius = 3.0f;
     public IList<VehicleBehaviour> vehicles = new List<VehicleBehaviour>();
 
-    public VehicleBehaviour travellerPrefab;
+    public VehicleBehaviour vehiclePrefab;
     public ObstacleBehaviour obstaclePrefab;
 
     public Transform doorLeftTop;
@@ -83,7 +83,7 @@ public class GameManager : MonoBehaviour
     private void CreateObstacles()
     {
         obstacles = new List<ObstacleBehaviour>();
-        for (int i=0; i<numberOfObstacles; i++)
+        for (int i = 0; i < numberOfObstacles; i++)
         {
             Vector2 obstacleCenter;
             // Find somewhere to place the obstacle.
@@ -94,7 +94,7 @@ public class GameManager : MonoBehaviour
             {
                 Debug.LogError("There seems to be not enough space to guarantee that obstacles do not overlap!");
             }
-            
+
             var obstacle = Instantiate<ObstacleBehaviour>(obstaclePrefab, obstacleCenter, Quaternion.identity, transform);
             //obstacle.numberOfVertices = Random.Range(4, 17);
             //obstacle.radius = obstacleRadius;
@@ -102,7 +102,7 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    private bool TryGetAvailableRandomSpawnPosition(float objectRadius, out Vector2 spawnPosition, int maxAttempts = 10, float minDistanceBetweenObjects=1.0f)
+    private bool TryGetAvailableRandomSpawnPosition(float objectRadius, out Vector2 spawnPosition, int maxAttempts = 10, float minDistanceBetweenObjects = 1.0f)
     {
 
         // Check that there are no other objects colliding with this one.
@@ -121,7 +121,7 @@ public class GameManager : MonoBehaviour
                 Random.Range(yMin + objectRadius + minDistanceBetweenObjects, yMax - objectRadius - minDistanceBetweenObjects)
             );
 
-            found = colliders.Count == 0 || colliders.TrueForAll((other) => 
+            found = colliders.Count == 0 || colliders.TrueForAll((other) =>
                 {
                     var d = coll.Distance(other);
                     //Debug.Log("Attempt " + attempt + "Distance to "+other.name+": " + d.distance + " overlapped: " + d.isOverlapped);
@@ -130,7 +130,8 @@ public class GameManager : MonoBehaviour
             );
         }
         spawnPosition = coll.offset;
-        if (!found) {
+        if (!found)
+        {
             Debug.LogWarning("Unable to find a placement location with no overlap. (" + maxAttempts + " attempts)");
         }
         Destroy(go);
@@ -142,28 +143,36 @@ public class GameManager : MonoBehaviour
         for (int i = 0; i < numberOfTravellingAgents; i++)
         {
             Vector2 spawnPosition = doorRight.position;
-            var newTraveller = Instantiate<VehicleBehaviour>(travellerPrefab, spawnPosition, Quaternion.identity, this.transform);
-            if(!TryGetAvailableRandomSpawnPosition(VehicleBehaviour.radius, out spawnPosition))
-            {
-                Debug.LogWarning("Unable able to find a free spot where an agent could be placed! (Are there perhaps too many obstacles ?)");
-            }
-
+            var newTraveller = Instantiate<VehicleBehaviour>(vehiclePrefab, spawnPosition, Quaternion.identity, this.transform);
             int choice = Random.Range(0, 2);
             newTraveller.target = choice == 0 ? doorLeftTop.position : doorLeftBottom.position;
             newTraveller.role = AgentRole.Traveller;
+            newTraveller.state = VehicleState.SEEK;
             Debug.Log("Spawning a new Agent. " + "Role: " + newTraveller.role + " target: " + newTraveller.target);
         }
-    }    
+    }
 
     private void SpawnWanderingAgents()
     {
-        // TODO
+        for (int i = 0; i < numberOfWanderingAgents; i++)
+        {
+            Vector2 spawnPosition;
+            if (!TryGetAvailableRandomSpawnPosition(VehicleBehaviour.radius, out spawnPosition))
+            {
+                Debug.LogWarning("Unable able to find a free spot where an agent could be placed! (Are there perhaps too many obstacles ?)");
+            }
+            var newWanderer = Instantiate<VehicleBehaviour>(vehiclePrefab, spawnPosition, Quaternion.identity, this.transform);
+
+            newWanderer.role = AgentRole.Wanderer;
+            newWanderer.state = VehicleState.WANDERING;
+            Debug.Log("Spawning a new Agent. " + "Role: " + newWanderer.role + " target: " + newWanderer.target);
+        }
     }
-        
+
     //Update is called every frame.
     void Update()
     {
 
     }
-    
+
 }

@@ -1,4 +1,4 @@
-﻿using System;
+﻿
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -6,7 +6,14 @@ using UnityEngine;
 
 public enum VehicleState
 {
-    SEEK, FLEE, PURSUIT, OFFSET_PURSUIT, ARRIVAL, COLLISION_AVOIDANCE
+    STILL,
+    SEEK,
+    FLEE,
+    PURSUIT,
+    OFFSET_PURSUIT,
+    ARRIVAL,
+    COLLISION_AVOIDANCE,
+    WANDERING,
 }
 
 public enum AgentRole
@@ -36,6 +43,7 @@ public class VehicleBehaviour : MonoBehaviour
     private Vector2 steeringCollisionAvoidance = Vector2.zero;
 
     public VehicleState state;
+    public VehicleState previousState;
     public AgentRole role;
 
     [HideInInspector]
@@ -62,7 +70,7 @@ public class VehicleBehaviour : MonoBehaviour
     void Start()
     {
         spriteRenderer.color = GetColor();
-        Debug.Log("Agent Starting. My role is:" + role.ToString() + " Target is " + target);
+        Debug.Log("Agent Starting at position" + transform.position + " My role is: " + role.ToString());
         gameObject.name = role.ToString();
     }
 
@@ -80,9 +88,7 @@ public class VehicleBehaviour : MonoBehaviour
                 return Color.white;
         }
     }
-
-
-    private Collider2D[] collisions;
+    
     void FixedUpdate()
     {
         if (role == AgentRole.None)
@@ -93,7 +99,7 @@ public class VehicleBehaviour : MonoBehaviour
         {
             if (state == VehicleState.COLLISION_AVOIDANCE)
             {
-                foreach(var otherCollider in collisionAvoidanceObjects)
+                foreach (var otherCollider in collisionAvoidanceObjects)
                 {
                     CollisionAvoidance(otherCollider);
                 }
@@ -103,26 +109,35 @@ public class VehicleBehaviour : MonoBehaviour
                 Seek(target);
             }
         }
+        else if (role == AgentRole.Wanderer)
+        {
+            if (state == VehicleState.COLLISION_AVOIDANCE)
+            {
+                foreach (var otherObject in collisionAvoidanceObjects)
+                {
+                    CollisionAvoidance(otherObject);
+                }
+            }
+            if (state == VehicleState.WANDERING)
+            {
+                Wander();
+            }
+        }
+        var sightLength = rigidBody.velocity.magnitude;
+        boxCollider.offset = new Vector2(sightLength / 2, 0);
+        boxCollider.size = new Vector2(sightLength, 1);
+
+
         var steeringForce = Vector2.ClampMagnitude(steering, maxForce);
+        rigidBody.AddForce(steeringForce);
+
         //Debug.Log("Role: " + role + " Target: " + target + " Steering: " + steering);
         rigidBody.velocity = Vector2.ClampMagnitude(rigidBody.velocity, maxSpeed);
-        rigidBody.AddForce(steeringForce);
         Vector2 position = transform.position;
         Vector2 velocity = rigidBody.velocity;
 
         var angle = Mathf.Atan2(velocity.y, velocity.x) * Mathf.Rad2Deg;
         transform.rotation = Quaternion.AngleAxis(angle, Vector3.forward);
-        //transform.right = velocity.normalized;
-
-        //var acceleration = steeringForce * inverseMass;
-        //velocity = Vector2.ClampMagnitude(velocity + acceleration, maxSpeed);
-        //position += velocity * Time.deltaTime;
-        //forward = velocity.normalized;
-        //side = Vector2.Perpendicular(forward);
-
-        //transform.position = position;
-        //// because of the way "right" means the red axis.
-        //transform.right = forward;
     }
 
     private void Seek(Vector2 target)
@@ -146,6 +161,14 @@ public class VehicleBehaviour : MonoBehaviour
     {
         Vector2 target = EstimateFuturePosition(quarry);
         Seek(target);
+    }
+
+    private void Wander()
+    {
+        // add random variations to the Steering force.
+        var randomForce = Vector2.ClampMagnitude(Random.insideUnitCircle, maxForce / 10);
+        steering += randomForce;
+        steering = Vector2.ClampMagnitude(steering, maxForce);
     }
 
     private void OffsetPursuit(VehicleBehaviour quarry, float radius, float offsetAngle = 90)
@@ -202,11 +225,14 @@ public class VehicleBehaviour : MonoBehaviour
         if (other.CompareTag("Obstacle"))
         {
             //Debug.Log("About to hit an obstacle: " + other.name);
+            previousState = state;
             state = VehicleState.COLLISION_AVOIDANCE;
             collisionAvoidanceObjects.Add(other);
         }
         else if (other.CompareTag("Vehicle"))
         {
+            previousState = state;
+            state = VehicleState.COLLISION_AVOIDANCE;
             collisionAvoidanceObjects.Add(other);
         }
     }
@@ -214,7 +240,11 @@ public class VehicleBehaviour : MonoBehaviour
     private void OnTriggerExit2D(Collider2D other)
     {
         collisionAvoidanceObjects.Remove(other);
-        state = collisionAvoidanceObjects.Count == 0 ? VehicleState.SEEK : VehicleState.COLLISION_AVOIDANCE;
+        if (collisionAvoidanceObjects.Count == 0)
+        {
+            state = previousState;
+            previousState = VehicleState.COLLISION_AVOIDANCE;
+        }
     }
 
     private void TriggerStay2D(Collider2D other)
@@ -223,39 +253,8 @@ public class VehicleBehaviour : MonoBehaviour
 
     private void CollisionAvoidance(Collider2D other)
     {
-        //var numCollisions = boxCollider.OverlapCollider(filter, collisions);
-        ////Debug.Log("Collisions:" + numCollisions);
-        ////Debug.Log("Collisions :" + string.Join(",", collisions.Select(i => i.name).ToArray()));
-        //var realCollisions = new List<Collider2D>();
-        //for (int i = 0; i < numCollisions; i++)
-        //{
-        //    if (collisions[i].gameObject != gameObject)
-        //    {
-        //        realCollisions.Add(collisions[i]);
-        //    }
-        //}
-        //numCollisions = realCollisions.Count;
-        ////Debug.Log("Real collisions: " + numCollisions);
-        //if (numCollisions > 0)
-        //{
-        //    var distances = new float[numCollisions];
-        //    float distance = 0, minDistance = float.MaxValue;
-        //    int minIndex = 0;
-        //    for (int i = 0; i < numCollisions; i++)
-        //    {
-        //        distance = circleCollider.Distance(realCollisions[i]).distance;
-        //        if (distance < minDistance)
-        //        {
-        //            minDistance = distance;
-        //            minIndex = i;
-        //        }
-        //    }
-        //    //Debug.Log("Closest obstacle: " + realCollisions[minIndex].name);
-        //    CollisionAvoidance(realCollisions[minIndex]);
-        //}
-        Debug.Log("Collision Avoidance between " + name + " and: " + other.name);
+        //Debug.Log("Collision Avoidance between " + name + " and: " + other.name);
         var center = other.transform.position;
-        //var numCollisions = boxCollider.GetContacts(collisions);
         var toObstacle = other.transform.position - transform.position;
         var projection = Vector2.Dot(toObstacle, transform.up);
 
@@ -264,10 +263,10 @@ public class VehicleBehaviour : MonoBehaviour
         steeringCA = Vector2.ClampMagnitude(steeringCA, maxForce);
         rigidBody.AddForce(steeringCA);
         Debug.DrawRay(transform.position, steeringCA, Color.blue, 0.2f);
-        
+
 
         var brakingFactor = 0.1f * Mathf.Max(rigidBody.velocity.sqrMagnitude, 0.1f);
-        Vector2 brakingForce =  -1 * brakingFactor * transform.right;
+        Vector2 brakingForce = -1 * brakingFactor * transform.right;
         // The braking force is clamped higher than the steering and turning forces.
         brakingForce = Vector2.ClampMagnitude(brakingForce, 2 * maxForce);
         rigidBody.AddForce(brakingForce);
