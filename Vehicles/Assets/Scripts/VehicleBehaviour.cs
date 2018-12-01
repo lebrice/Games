@@ -15,6 +15,7 @@ public enum VehicleState
     COLLISION_AVOIDANCE,
     WANDERING,
     BLOCK,
+    CONVERSATION,
 }
 
 public enum AgentRole
@@ -109,13 +110,7 @@ public class VehicleBehaviour : MonoBehaviour
             rigidBody.velocity = Vector2.zero;
             return;
         }
-        if (state == VehicleState.COLLISION_AVOIDANCE)
-        {
-            foreach (var otherCollider in collisionAvoidanceObjects)
-            {
-                CollisionAvoidance(otherCollider);
-            }
-        }
+
         if (role == AgentRole.Traveller)
         {
             Arrival(target);
@@ -125,13 +120,27 @@ public class VehicleBehaviour : MonoBehaviour
             if (state == VehicleState.WANDERING)
             {
                 Wander();
+                if (FindTravellerToBlock(out agentToBlock))
+                {
+                    state = VehicleState.BLOCK;
+                }
             }
             else if (state == VehicleState.BLOCK)
             {
                 Block(agentToBlock);
+                if (!CloserThanThreshold(transform.position, agentToBlock.transform.position, 3.0f))
+                {
+                    Debug.Log(name + " Lost track of the agent, going back to wandering.");
+                    //Debug.Break();
+                    state = VehicleState.WANDERING;
+                }
             }
             // disable the "field of view" when we're trying to block someone.
             boxCollider.enabled = (state != VehicleState.BLOCK);
+        }
+        foreach (var otherCollider in collisionAvoidanceObjects)
+        {
+            CollisionAvoidance(otherCollider);
         }
 
         //Debug.Log("Role: " + role + " Target: " + target + " Steering: " + steering);
@@ -148,10 +157,14 @@ public class VehicleBehaviour : MonoBehaviour
 
     private void UpdateLineOfSightLength()
     {
-        sightLength = Mathf.Max(1, rigidBody.velocity.magnitude);
+        sightLength = Mathf.Max(3, rigidBody.velocity.magnitude);
         sightLength = Mathf.FloorToInt(sightLength);
-        boxCollider.offset = new Vector2(sightLength / 2, 0);
-        boxCollider.size = new Vector2(sightLength, 1);
+        // only update when the value actually changes.
+        if (boxCollider.offset.x != sightLength)
+        {
+            boxCollider.offset = new Vector2(sightLength / 2, 0);
+            boxCollider.size = new Vector2(sightLength, 1);
+        }
     }
 
     private void Seek(Vector2 target)
@@ -165,10 +178,10 @@ public class VehicleBehaviour : MonoBehaviour
         Debug.DrawRay(transform.position, steeringForce, Color.green, 0.2f);
     }
 
-    private void AddForce(Vector2 force, float maxLength)
+    private void AddForce(Vector2 force, float maxForce = maxForce)
     {
-        force = Vector2.ClampMagnitude(force, maxLength);
-        rigidBody.AddForce(force, ForceMode2D.Impulse);
+        force = Vector2.ClampMagnitude(force, maxForce);
+        rigidBody.AddForce(force, ForceMode2D.Force);
     }
 
     private void Flee(Vector2 target)
@@ -190,29 +203,30 @@ public class VehicleBehaviour : MonoBehaviour
 
     private void Wander()
     {
-        if (FindTravellerToBlock(out agentToBlock))
+        // Choose a random unobstructed point as a target, and travel there.
+        // Once we come close enough to it, choose another target and repeat.
+        Arrival(target);
+        rigidBody.velocity = Vector2.ClampMagnitude(rigidBody.velocity, maxSpeed / 2);
+        if (CloserThanThreshold(transform.position, target, 1.0f))
         {
-            state = VehicleState.BLOCK;
-        }
-        else
-        {
-            // Choose a random unobstructed point as a target, and travel there.
-            // Once we come close enough to it, choose another target and repeat.
-            Arrival(target);
-            if (CloserThanThreshold(transform.position, target, 1.0f))
-            {
-                SelectRandomTarget();
-            }
+            Debug.Log(name + " is selecting a new target:" + target);
+            SelectRandomTarget();
         }
     }
 
     private void Block(VehicleBehaviour other)
     {
         //float otherOrientation = other.transform.rotation.z;
+
+        var position = transform.position;
         Vector2 otherPosition = other.transform.position;
         var toTarget = (other.target - otherPosition).normalized;
         var angle = Vector2.SignedAngle(Vector2.right, toTarget);
         OffsetPursuit(other, startBlockingTravellersThreshold / 2, angle);
+
+        // make sure that the wanderers don't block the exit completely (keep an offset from the doors.)
+        var doorX = GameManager.instance.doorLeftTop.position.x;
+        transform.position = new Vector3(Mathf.Max(doorX + 1, position.x), position.y, 0);
     }
 
 
@@ -237,7 +251,6 @@ public class VehicleBehaviour : MonoBehaviour
         Vector2 desired_velocity = (clipped_speed / distance) * target_offset;
 
         var steeringForce = desired_velocity - velocity;
-        steeringForce = Vector2.ClampMagnitude(steeringForce, maxForce);
         AddForce(steeringForce, maxSteeringForce);
         Debug.DrawRay(transform.position, steeringForce, Color.green, 0.2f);
     }
@@ -285,9 +298,9 @@ public class VehicleBehaviour : MonoBehaviour
 
     private void SelectRandomTarget()
     {
-        if (!GameManager.instance.TryGetAvailableRandomSpawnPosition(radius, out target, minDistanceBetweenObjects: 0.1f))
+        if (!GameManager.instance.TryGetAvailableRandomSpawnPosition(radius, out target, minDistanceBetweenObjects: 0.1f, maxAttempts: 20))
         {
-            Debug.LogWarning("Unable to select a new target for the wanderer.");
+            Debug.LogWarning(name + " Was unable to select a new target for the wanderer.");
         }
     }
 
@@ -297,21 +310,21 @@ public class VehicleBehaviour : MonoBehaviour
         if (other.CompareTag("Obstacle") || other.CompareTag("Vehicle") || other.CompareTag("Wall"))
         {
             collisionAvoidanceObjects.Add(other);
-            if (state != VehicleState.COLLISION_AVOIDANCE)
-            {
-                previousState = state;
-            }
-            state = VehicleState.COLLISION_AVOIDANCE;
+            //if (state != VehicleState.COLLISION_AVOIDANCE)
+            //{
+            //    previousState = state;
+            //}
+            //state = VehicleState.COLLISION_AVOIDANCE;
         }
     }
 
     private void OnTriggerExit2D(Collider2D other)
     {
         collisionAvoidanceObjects.Remove(other);
-        if (collisionAvoidanceObjects.Count == 0)
-        {
-            state = previousState;
-        }
+        //if (collisionAvoidanceObjects.Count == 0)
+        //{
+        //    state = previousState;
+        //}
     }
 
     private void TriggerStay2D(Collider2D other)
@@ -330,7 +343,7 @@ public class VehicleBehaviour : MonoBehaviour
         var scalingFactor = projection * (1 / Mathf.Max(toObstacle.magnitude, 0.1f));
         Vector2 steeringCA = -transform.up * scalingFactor * maxForce;
         steeringCA = Vector2.ClampMagnitude(steeringCA, maxForce);
-        rigidBody.AddForce(steeringCA);
+        AddForce(steeringCA, maxForce/2);
         Debug.DrawRay(transform.position, steeringCA, Color.blue, 0.2f);
 
 
@@ -338,7 +351,7 @@ public class VehicleBehaviour : MonoBehaviour
         Vector2 brakingForce = -1 * brakingFactor * transform.right;
         // The braking force is clamped higher than the steering and turning forces.
         brakingForce = Vector2.ClampMagnitude(brakingForce, 2 * maxForce);
-        rigidBody.AddForce(brakingForce);
+        AddForce(brakingForce);
         Debug.DrawRay(transform.position, brakingForce, Color.cyan, 0.2f);
 
 

@@ -58,15 +58,9 @@ public class GameManager : MonoBehaviour
     {
         Debug.Log("Agent reached a door: " + agent.name);
         if (agent.role == AgentRole.Traveller && door.name != doorRight.name)
-        {
-            Vector2 spawnPosition = doorRight.transform.position;
-            //if (!TryGetAvailableRandomSpawnPosition(VehicleBehaviour.radius, out spawnPosition))
-            //{
-            //    Debug.LogError("Couldn't place a new Agent! (Are there perhaps too many objects?)");
-            //}
-
-            var rotation = Quaternion.Euler(0, 0, Random.Range(-180f, 180f));
-            agent.transform.SetPositionAndRotation(spawnPosition, rotation);
+        {            
+            agent.transform.position = doorRight.transform.position;
+            agent.transform.rotation = Quaternion.Euler(new Vector3(0, 0, 180));
             agent.target = Random.Range(0, 2) == 0 ? doorLeftTop.position : doorLeftBottom.position;
         }
     }
@@ -85,30 +79,40 @@ public class GameManager : MonoBehaviour
         obstacles = new List<ObstacleBehaviour>();
         for (int i = 0; i < numberOfObstacles; i++)
         {
-            Vector2 obstacleCenter;
+            Vector2 obstacleCenter = Vector2.zero;
             // Find somewhere to place the obstacle.
             var obstacleRadius = ObstaclesAverageRadius * Random.Range(0.75f, 1.25f);
             obstaclePrefab.radius = obstacleRadius;
             obstaclePrefab.numberOfVertices = Random.Range(4, 17);
-            if (!TryGetAvailableRandomSpawnPosition(obstacleRadius, out obstacleCenter, maxAttempts: 100))
+            bool success = false;
+            for (int j = 0; j < 5; j++)
             {
-                Debug.LogError("There seems to be not enough space to guarantee that obstacles do not overlap!");
+                if (!TryGetAvailableRandomSpawnPosition(obstacleRadius, out obstacleCenter, maxAttempts: 20))
+                {
+                    obstacleRadius /= 2;
+                    obstaclePrefab.radius = obstacleRadius;
+                    Debug.Log("Unable to palce an obstacle of radius " + obstacleRadius);
+                }
+                else
+                {
+                    success = true;
+                    break;
+                }
+            }
+            if (!success)
+            {
+                Debug.LogError("Unable to place an obstacle, even with a radius of " + obstacleRadius +
+                    " (Are there perhaps too many objects in the scene?)");
             }
 
             var obstacle = Instantiate<ObstacleBehaviour>(obstaclePrefab, obstacleCenter, Quaternion.identity, transform);
-            //obstacle.numberOfVertices = Random.Range(4, 17);
-            //obstacle.radius = obstacleRadius;
             obstacles.Add(obstacle);
         }
     }
 
     public bool TryGetAvailableRandomSpawnPosition(float objectRadius, out Vector2 spawnPosition, int maxAttempts = 10, float minDistanceBetweenObjects = 1.0f)
     {
-
-        // Check that there are no other objects colliding with this one.
-        //var colliders = new List<Collider2D>(GetComponentsInChildren<PolygonCollider2D>());
         var colliders = obstacles.Select(o => o.GetComponent<Collider2D>()).ToList();
-        Debug.Log("There are a total of " + colliders.Count + " Colliders.");
         var go = new GameObject();
         var coll = go.AddComponent<CircleCollider2D>();
         coll.radius = objectRadius;
@@ -132,7 +136,7 @@ public class GameManager : MonoBehaviour
         spawnPosition = coll.offset;
         if (!found)
         {
-            Debug.LogWarning("Unable to find a placement location with no overlap. (" + maxAttempts + " attempts)");
+            //Debug.LogWarning("Unable to find a placement location with no overlap. (" + maxAttempts + " attempts)");
         }
         Destroy(go);
         return found;
@@ -160,7 +164,7 @@ public class GameManager : MonoBehaviour
         for (int i = 0; i < numberOfWanderingAgents; i++)
         {
             Vector2 spawnPosition;
-            if (!TryGetAvailableRandomSpawnPosition(VehicleBehaviour.radius, out spawnPosition))
+            if (!TryGetAvailableRandomSpawnPosition(VehicleBehaviour.radius, out spawnPosition, maxAttempts: 20, minDistanceBetweenObjects: 0.1f))
             {
                 Debug.LogWarning("Unable able to find a free spot where an agent could be placed! (Are there perhaps too many obstacles ?)");
             }
