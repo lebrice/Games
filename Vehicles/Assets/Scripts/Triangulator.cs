@@ -1,8 +1,5 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine;
-using System.Collections.Generic;
 
 /// <summary>
 /// Used to perform triangulation for the Obstacle polygons.

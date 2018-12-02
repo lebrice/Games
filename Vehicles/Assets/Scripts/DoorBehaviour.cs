@@ -3,11 +3,9 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class DoorBehaviour : MonoBehaviour {
-    private BoxCollider2D boxCollider;
     
     void Awake()
     {
-        boxCollider = GetComponent<BoxCollider2D>();
     }
     
     // Use this for initialization

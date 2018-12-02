@@ -685,12 +685,17 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   numberOfObstacles: 5
-  numberOfWanderingAgents: 6
+  numberOfWanderingAgents: 2
   numberOfTravellingAgents: 1
+  numberOfSocialAgents: 2
   ObstaclesAverageRadius: 3
-  vehiclePrefab: {fileID: 114143782239300610, guid: 2e379ed729e0c7c41891645993c75e31,
-    type: 2}
   obstaclePrefab: {fileID: 114703778404876992, guid: 203f4b1f2fa878e45a78b22166f7ed54,
+    type: 2}
+  travellerPrefab: {fileID: 114775952881104660, guid: 3dffd35c7e747214aabed2631b63af54,
+    type: 2}
+  wandererPrefab: {fileID: 114050979020826774, guid: 7d807195a15f8fb40889d1b88360e743,
+    type: 2}
+  socialPrefab: {fileID: 114433869475867372, guid: d706ffc68fb42f54c8e8d411b617af88,
     type: 2}
   doorLeftTop: {fileID: 1053497499}
   doorLeftBottom: {fileID: 762570986}
