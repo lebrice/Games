@@ -76,10 +76,6 @@ public class TravellerBehaviour : VehicleBehaviour {
 
     protected override void FixedUpdate()
     {
-        if(collisionAvoidanceObjects.Count == 0)
-        {
-            
-        }
         Seek(target);
         base.FixedUpdate();
     }

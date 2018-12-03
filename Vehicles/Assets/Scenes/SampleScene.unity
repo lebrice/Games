@@ -684,11 +684,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6191b7f79da3a9540afa918de88b01de, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  numberOfObstacles: 5
-  numberOfWanderingAgents: 2
-  numberOfTravellingAgents: 1
-  numberOfSocialAgents: 2
-  ObstaclesAverageRadius: 3
+  numberOfObstacles: 10
+  numberOfWanderingAgents: 10
+  numberOfTravellingAgents: 10
+  numberOfSocialAgents: 10
+  ObstaclesAverageRadius: 2
+  travellerSuccessCount: 0
   obstaclePrefab: {fileID: 114703778404876992, guid: 203f4b1f2fa878e45a78b22166f7ed54,
     type: 2}
   travellerPrefab: {fileID: 114775952881104660, guid: 3dffd35c7e747214aabed2631b63af54,

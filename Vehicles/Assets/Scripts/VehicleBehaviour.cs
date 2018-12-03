@@ -196,7 +196,7 @@ public class VehicleBehaviour : MonoBehaviour
     }
     protected bool ReachedTarget()
     {
-        return CloserThanThreshold(transform.position, target, 1.0f);
+        return CloserThanThreshold(transform.position, target, 0.5f);
     }
 
     private void UpdateLineOfSightLength()

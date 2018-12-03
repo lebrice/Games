@@ -19,11 +19,11 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4690893572213578}
+  - component: {fileID: 114775952881104660}
   - component: {fileID: 212846867363380812}
   - component: {fileID: 50341631173301374}
   - component: {fileID: 58840201239251532}
   - component: {fileID: 61140938159115894}
-  - component: {fileID: 114775952881104660}
   m_Layer: 0
   m_Name: Traveller
   m_TagString: Vehicle

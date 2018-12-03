@@ -115,8 +115,8 @@ public class SocialBehaviour : VehicleBehaviour {
 
     private void LeaveSocialGroup()
     {
-        socialGroup.Remove(this);
-        if(socialGroup.Count == 1)
+        socialGroup?.Remove(this);
+        if(socialGroup?.Count == 1)
         {
             var lonerInGroup = socialGroup[0];
             Debug.Log("Destroying the group, since there is only one person left.");
