@@ -28,7 +28,7 @@ public class WandererBehaviour : VehicleBehaviour {
             state = VehicleState.WANDERING;
             yield return new WaitUntil(() => FindTravellerToBlock(out agentToBlock));
             state = VehicleState.BLOCK;
-            yield return new WaitUntil(() => TravellerGotAway());
+            yield return new WaitUntil(TravellerGotAway);
             SelectRandomTarget();
         }
     }

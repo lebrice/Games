@@ -24,6 +24,8 @@ public class GameManager : MonoBehaviour
     public float ObstaclesAverageRadius = 3.0f;
     public IList<VehicleBehaviour> vehicles = new List<VehicleBehaviour>();
 
+    public int travellerSuccessCount = 0;
+
     //public VehicleBehaviour vehiclePrefab;
     public ObstacleBehaviour obstaclePrefab;
     public TravellerBehaviour travellerPrefab;
@@ -58,16 +60,16 @@ public class GameManager : MonoBehaviour
         DontDestroyOnLoad(gameObject);
     }
     
-    public void AgentReachedDoor(VehicleBehaviour agent, GameObject door)
-    {
-        Debug.Log("Agent reached a door: " + agent.name);
-        if (agent.role == AgentRole.Traveller && door.name != doorRight.name)
-        {
-            agent.transform.position = doorRight.transform.position;
-            agent.transform.rotation = Quaternion.Euler(new Vector3(0, 0, 180));
-            agent.target = Random.Range(0, 2) == 0 ? doorLeftTop.position : doorLeftBottom.position;
-        }
-    }
+    //public void AgentReachedDoor(VehicleBehaviour agent, GameObject door)
+    //{
+    //    Debug.Log("Agent reached a door: " + agent.name);
+    //    if (agent.role == AgentRole.Traveller && door.name != doorRight.name)
+    //    {
+    //        agent.transform.position = doorRight.transform.position;
+    //        agent.transform.rotation = Quaternion.Euler(new Vector3(0, 0, 180));
+    //        agent.target = Random.Range(0, 2) == 0 ? doorLeftTop.position : doorLeftBottom.position;
+    //    }
+    //}
 
     //Initializes the game for each level.
     void Start()

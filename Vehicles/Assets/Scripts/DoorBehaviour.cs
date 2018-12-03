@@ -22,15 +22,15 @@ public class DoorBehaviour : MonoBehaviour {
 
     private void OnTriggerEnter2D(Collider2D other)
     {
-        //Debug.Log(name + " was triggered by" + other.name);
-        if (other.CompareTag("Vehicle"))
-        {
-            var circleCollider = other.GetComponent<CircleCollider2D>();
-            if(other == circleCollider)
-            {
-                var agent = other.GetComponent<VehicleBehaviour>();
-                GameManager.instance.AgentReachedDoor(agent, gameObject);
-            }
-        }
+        ////Debug.Log(name + " was triggered by" + other.name);
+        //if (other.CompareTag("Vehicle"))
+        //{
+        //    var circleCollider = other.GetComponent<CircleCollider2D>();
+        //    if(other == circleCollider)
+        //    {
+        //        var agent = other.GetComponent<VehicleBehaviour>();
+        //        GameManager.instance.AgentReachedDoor(agent, gameObject);
+        //    }
+        //}
     }
 }

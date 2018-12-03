@@ -194,6 +194,10 @@ public class VehicleBehaviour : MonoBehaviour
         Vector2 target = EstimateFuturePosition(quarry);
         Flee(target);
     }
+    protected bool ReachedTarget()
+    {
+        return CloserThanThreshold(transform.position, target, 1.0f);
+    }
 
     private void UpdateLineOfSightLength()
     {
@@ -235,6 +239,10 @@ public class VehicleBehaviour : MonoBehaviour
 
     protected virtual void OnTriggerEnter2D(Collider2D other)
     {
+        if (other.CompareTag("Vehicle") && other.GetType() == typeof(BoxCollider2D))
+        {
+            return;
+        }
         //Debug.Log(name + " was triggered by" + other.name);
         if (other.CompareTag("Obstacle") || other.CompareTag("Vehicle") || other.CompareTag("Wall"))
         {
@@ -264,29 +272,28 @@ public class VehicleBehaviour : MonoBehaviour
     {
         //Debug.Log("Collision Avoidance between " + name + " and: " + other.name);
         var distance = circleCollider.Distance(other);
-        var force = distance.normal * distance.distance * maxForce;
-        Debug.DrawRay(transform.position, force, Color.blue, 0.2f);
+        //var force = distance.normal * distance.distance * maxForce;
+        //Debug.DrawRay(transform.position, force, Color.blue, 0.2f);
+        //AddForce(force);
 
-        AddForce(force);
+        Vector2 closestPointOther = distance.pointB;
+        Vector2 position = transform.position;
+        var toObstacle = closestPointOther - position;
+        var projection = Vector2.Dot(toObstacle, transform.up);
 
-        //Vector2 closestPointOther = distance.pointB;
-        //Vector2 position = transform.position;
-        //var toObstacle = closestPointOther - position;
-        //var projection = Vector2.Dot(toObstacle, transform.up);
-
-        //var scalingFactor = projection * (1 / Mathf.Max(toObstacle.magnitude, 0.1f));
-        //Vector2 steeringCA = -transform.up * scalingFactor * maxForce;
-        //steeringCA = Vector2.ClampMagnitude(steeringCA, maxForce);
-        //AddForce(steeringCA, maxForce/2);
-        //Debug.DrawRay(transform.position, steeringCA, Color.blue, 0.2f);
+        var scalingFactor = projection * (1 / Mathf.Max(toObstacle.magnitude, 0.1f));
+        Vector2 steeringCA = -transform.up * scalingFactor * maxForce;
+        steeringCA = Vector2.ClampMagnitude(steeringCA, maxForce);
+        AddForce(steeringCA, maxForce / 2);
+        Debug.DrawRay(transform.position, steeringCA, Color.blue, 0.2f);
 
 
-        //var brakingFactor = 0.1f * Mathf.Max(rigidBody.velocity.sqrMagnitude, 0.1f);
-        //Vector2 brakingForce = -1 * brakingFactor * transform.right;
-        //// The braking force is clamped higher than the steering and turning forces.
-        //brakingForce = Vector2.ClampMagnitude(brakingForce, 2 * maxForce);
-        //AddForce(brakingForce);
-        //Debug.DrawRay(transform.position, brakingForce, Color.cyan, 0.2f);
+        var brakingFactor = 0.1f * Mathf.Max(rigidBody.velocity.sqrMagnitude, 0.1f);
+        Vector2 brakingForce = -1 * brakingFactor * transform.right;
+        // The braking force is clamped higher than the steering and turning forces.
+        brakingForce = Vector2.ClampMagnitude(brakingForce, 2 * maxForce);
+        AddForce(brakingForce);
+        Debug.DrawRay(transform.position, brakingForce, Color.cyan, 0.2f);
     }
 
     // Update is called once per frame
