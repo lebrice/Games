@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class TravellerBehaviour : VehicleBehaviour {
-    
+
+    private const int secondsBeforeSwitchingDoors = 10;
 
 	// Use this for initialization
 	protected override void Start () {
@@ -23,9 +24,10 @@ public class TravellerBehaviour : VehicleBehaviour {
             bool reachedDoor = false;
             while (!reachedDoor)
             {
-                for (int i = 0; i < 10 && !reachedDoor; i++)
+                // check every half-second, so the travellers don't linger at the door too long.
+                for (int i = 0; i < secondsBeforeSwitchingDoors * 2 && !reachedDoor; i++)
                 {
-                    yield return new WaitForSeconds(1);
+                    yield return new WaitForSeconds(0.5f);
                     reachedDoor = ReachedTarget();
                 }
                 if (!reachedDoor)
@@ -53,7 +55,7 @@ public class TravellerBehaviour : VehicleBehaviour {
 
     private void SelectOtherDoor()
     {
-        Debug.Log(name + " decided to switch doors, since it was unable to reach one in time.");
+        //Debug.Log(name + " decided to switch doors, since it was unable to reach one in time.");
         Vector2 doorTop = GameManager.instance.doorLeftTop.position;
         Vector2 doorBottom = GameManager.instance.doorLeftBottom.position;
         target = (target == doorTop) ? doorBottom : doorTop;

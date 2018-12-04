@@ -1,6 +1,9 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text;
+using UnityEditor;
 using UnityEngine;
 
 public class GameManager : MonoBehaviour
@@ -13,15 +16,15 @@ public class GameManager : MonoBehaviour
     //Static instance of GameManager which allows it to be accessed by any other script.
     public static GameManager instance = null;
     [Range(2, 10)]
-    public int numberOfObstacles = 2;
+    public int numberOfObstacles = 10;
     [Range(1, 10)]
-    public int numberOfWanderingAgents = 1;
+    public int numberOfWanderingAgents = 10;
     [Range(1, 10)]
-    public int numberOfTravellingAgents = 1;
+    public int numberOfTravellingAgents = 10;
     [Range(1, 10)]
-    public int numberOfSocialAgents = 1;
+    public int numberOfSocialAgents = 10;
     [Range(1, 5)]
-    public float ObstaclesAverageRadius = 3.0f;
+    public float ObstaclesAverageRadius = 2.0f;
     public IList<VehicleBehaviour> vehicles = new List<VehicleBehaviour>();
 
     public int travellerSuccessCount = 0;
@@ -54,32 +57,108 @@ public class GameManager : MonoBehaviour
             //Then destroy this. This enforces our singleton pattern, meaning there can only ever be one instance of a GameManager.
             Destroy(gameObject);
         }
-
-        CreateObstacles();
-
         DontDestroyOnLoad(gameObject);
+
+
+         filePath = Application.dataPath + "/results.csv";
+         file = new StreamWriter(filePath);
     }
-    
-    //public void AgentReachedDoor(VehicleBehaviour agent, GameObject door)
-    //{
-    //    Debug.Log("Agent reached a door: " + agent.name);
-    //    if (agent.role == AgentRole.Traveller && door.name != doorRight.name)
-    //    {
-    //        agent.transform.position = doorRight.transform.position;
-    //        agent.transform.rotation = Quaternion.Euler(new Vector3(0, 0, 180));
-    //        agent.target = Random.Range(0, 2) == 0 ? doorLeftTop.position : doorLeftBottom.position;
-    //    }
-    //}
+    static string filePath;
+    static StreamWriter file;
+
 
     //Initializes the game for each level.
     void Start()
+    {
+        if (EditorUtility.DisplayDialog("Start in Data-Gathering mode?",
+               "Would you like to start in data-gathering mode?" +
+               "\n" +
+               "(Data gathering mode is a series of 30-second cycles that evaluate " +
+               "the number of traveller agents which succeed under different " +
+               "conditions.)" +
+               "\n" +
+               "Demo mode is a simple demo with 10 of each agent type.", "Data-Gathering Mode", "Demo-Mode"))
+        {
+            StartCoroutine(GatherSamples());
+        }
+        else
+        {
+            SpawnObstacles();
+            SpawnAllAgents();
+        }
+    }
+ 
+    IEnumerator GatherSamples()
+    {
+        var travellerCount = 10;
+        var obstacleCounts = Enumerable.Range(2, 8);
+        var wandererCounts = Enumerable.Range(0, 10);
+        var socialCounts = Enumerable.Range(0, 10);
+        Debug.LogWarning("Creating output file at: " + filePath);
+        
+        file.WriteLine("Travellers,Obstacles,Wanderers,Socials,Result,screenshot");
+        foreach (int obstacleCount in obstacleCounts)
+        {
+            numberOfObstacles = obstacleCount;
+            SpawnObstacles();
+            foreach (int wandererCount in wandererCounts)
+            {
+                foreach (int socialCount in socialCounts)
+                {
+                    Debug.Log("Starting new Session: Travellers: " + travellerCount + " obstacles: " + obstacleCount + " wanderers: " + wandererCount + " Socials: " + socialCount);
+                    travellerSuccessCount = 0;
+                    numberOfTravellingAgents = travellerCount;
+                    numberOfWanderingAgents = wandererCount;
+                    numberOfSocialAgents = socialCount;
+                    SpawnAllAgents();
+                    yield return new WaitForSeconds(30);
+                    var imageFileName = $"screenshot_{travellerCount}_{obstacleCount}_{wandererCount}_{socialCount}.png";
+                    var screenShotFilePath = Application.dataPath + "/screenshots/" + imageFileName;
+                    yield return new WaitForEndOfFrame();
+                    ScreenCapture.CaptureScreenshot(screenShotFilePath);
+                    DespawnAllAgents();
+                    yield return new WaitForEndOfFrame();
+                    Debug.Log("Number of successfull traveller agents: " + travellerSuccessCount);
+                    file.WriteLine(string.Join(",", travellerCount, obstacleCount, wandererCount, socialCount, travellerSuccessCount, imageFileName));
+                    file.Flush();
+                }
+            }
+            DespawnObstacles();
+            yield return new WaitForEndOfFrame();
+        }
+        
+    }
+
+
+    private void DespawnAllAgents()
+    {
+        foreach (var vehicle in vehicles)
+        {
+            Destroy(vehicle.gameObject);
+        }
+        vehicles?.Clear();
+    }
+
+    void SpawnAllAgents()
     {
         SpawnTravellingAgents();
         SpawnWanderingAgents();
         SpawnSocialAgents();
     }
 
-    private void CreateObstacles()
+        
+
+    private void DespawnObstacles()
+    {
+        foreach (var obstacle in obstacles)
+        {
+            Destroy(obstacle.gameObject);
+        }
+        obstacles?.Clear();
+        availableSpots?.Clear();
+    }
+
+    private void SpawnObstacles()
     {
         obstacles = new List<ObstacleBehaviour>();
         for (int i = 0; i < numberOfObstacles; i++)
@@ -114,24 +193,6 @@ public class GameManager : MonoBehaviour
             obstacles.Add(obstacle);
         }
     }
-
-    public Vector2 GetUnobstructedRegionForAgent()
-    {
-        if (availableSpots == null)
-        {
-            PrecomputeObstructedRegions();
-            Debug.Log("Availalable spots:" + availableSpots.Count);
-        }
-        var randomSpot = availableSpots[Random.Range(0, availableSpots.Count)];
-        //var x = randomSpot.Item1 * gridCellLengthUnits + xMin;
-        //var y = randomSpot.Item2 * gridCellLengthUnits + yMin;
-        var x = randomSpot.Item1;
-        var y = randomSpot.Item2;
-        return new Vector2(x, y);
-    }
-
-
-
 
     private void SpawnTravellingAgents()
     {
@@ -170,6 +231,21 @@ public class GameManager : MonoBehaviour
     }
 
 
+    public Vector2 GetUnobstructedRegionForAgent()
+    {
+        if (availableSpots == null || availableSpots.Count == 0)
+        {
+            PrecomputeObstructedRegions();
+            Debug.Log("Availalable spots:" + availableSpots.Count);
+        }
+        var randomSpot = availableSpots[Random.Range(0, availableSpots.Count)];
+        //var x = randomSpot.Item1 * gridCellLengthUnits + xMin;
+        //var y = randomSpot.Item2 * gridCellLengthUnits + yMin;
+        var x = randomSpot.Item1;
+        var y = randomSpot.Item2;
+        return new Vector2(x, y);
+    }
+
     //private bool[,] obstructionGrid;
     private List<System.Tuple<float, float>> availableSpots;
     private const float gridCellLengthUnits = 0.25f;
@@ -180,8 +256,9 @@ public class GameManager : MonoBehaviour
         Debug.Log("Colliders:" + colliders?.Count());
 
         // create a CircleCollider used to check if a given position is free.
-        var dummy = new GameObject();
-        var coll = dummy.AddComponent<CircleCollider2D>();
+        var dummy = GameObject.Find("dummy") ?? new GameObject("dummy", new[] { typeof(CircleCollider2D) });
+        var coll = dummy.GetComponent<CircleCollider2D>();
+        dummy.SetActive(true);
         coll.radius = VehicleBehaviour.radius;
 
         // take the colliders for the obstacles and walls.
@@ -200,7 +277,12 @@ public class GameManager : MonoBehaviour
                 coll.offset = new Vector2(x, y);
                 spotIsFree = colliders.All(c =>
                 {
+                    
                     var d = coll.Distance(c);
+                    if (!d.isValid)
+                    {
+                        Debug.DebugBreak();
+                    }
                     return !d.isOverlapped && d.distance > minDistanceToAnyObject;
                 });
                 //obstructionGrid[i, j] = spotIsFree;
@@ -215,7 +297,9 @@ public class GameManager : MonoBehaviour
                 }
             }
         }
-        Destroy(dummy, 1.0f);
+        //dummy.SetActive(false);
+        dummy.transform.position = new Vector2(100, 100);
+        Debug.Log("Finished precomputing, available spots: " + availableSpots.Count);
     }
 
     public bool TryGetAvailableRandomSpawnPosition(float objectRadius, out Vector2 spawnPosition, int maxAttempts = 10, float minDistanceBetweenObjects = 1.0f)
@@ -251,4 +335,33 @@ public class GameManager : MonoBehaviour
     }
 
 
+}
+public static class MyEnumeratorExtensions
+{
+    /// <summary>
+    /// Taken from https://stackoverflow.com/questions/10297124/how-to-combine-more-than-two-generic-lists-in-c-sharp-zip
+    /// </summary>
+    /// <typeparam name="T1"></typeparam>
+    /// <typeparam name="T2"></typeparam>
+    /// <typeparam name="T3"></typeparam>
+    /// <typeparam name="TResult"></typeparam>
+    /// <param name="source"></param>
+    /// <param name="second"></param>
+    /// <param name="third"></param>
+    /// <param name="func"></param>
+    /// <returns></returns>
+    public static IEnumerable<TResult> ZipThree<T1, T2, T3, TResult>(
+           this IEnumerable<T1> source,
+           IEnumerable<T2> second,
+           IEnumerable<T3> third,
+           System.Func<T1, T2, T3, TResult> func)
+    {
+        using (var e1 = source.GetEnumerator())
+        using (var e2 = second.GetEnumerator())
+        using (var e3 = third.GetEnumerator())
+        {
+            while (e1.MoveNext() && e2.MoveNext() && e3.MoveNext())
+                yield return func(e1.Current, e2.Current, e3.Current);
+        }
+    }
 }

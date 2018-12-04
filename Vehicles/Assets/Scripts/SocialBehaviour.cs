@@ -6,9 +6,9 @@ using UnityEngine;
 public class SocialBehaviour : VehicleBehaviour {
 
     public List<SocialBehaviour> socialGroup;
-    public const float joinGroupDistanceThreshold = 3.0f;
+    public const float joinGroupDistanceThreshold = 2.0f;
     public const float keepWanderingCoolingOffTime = 10.0f;
-
+    public bool readyToJoinGroup;
     // Use this for initialization
     protected override void Start()
     {
@@ -28,15 +28,17 @@ public class SocialBehaviour : VehicleBehaviour {
             SelectRandomTarget();
             state = VehicleState.WANDERING;
             SelectRandomTarget();
+            readyToJoinGroup = true;
             yield return new WaitUntil(() => OtherSocialAgentNearby(out socialGroup));
 
-            Debug.Log($"{name} joined a conversation.");
+            //Debug.Log($"{name} joined a conversation.");
             state = VehicleState.CONVERSATION;
             boxCollider.enabled = false;
             float stayInConversationDuration = Random.Range(0.5f, 2.0f);
             yield return new WaitForSeconds(stayInConversationDuration);
 
-            Debug.Log($"{name} Left a conversation.");
+            //Debug.Log($"{name} Left a conversation.");
+            readyToJoinGroup = false;
             LeaveSocialGroup();
             state = VehicleState.WANDERING;
             SelectRandomTarget();
@@ -92,6 +94,10 @@ public class SocialBehaviour : VehicleBehaviour {
             //Debug.Log("There is a nearby Social agent:" + vehicle);
             //Debug.Break();
             var agent = vehicle as SocialBehaviour;
+            if (!agent.readyToJoinGroup)
+            {
+                continue;
+            }
             socialGroup = agent?.socialGroup;
             if (socialGroup == null)
             {
@@ -100,11 +106,11 @@ public class SocialBehaviour : VehicleBehaviour {
                 socialGroup.Add(agent);
                 agent.socialGroup = socialGroup;
 
-                Debug.Log($"{name} and {agent.name} are creating a new group.");
+                //Debug.Log($"{name} and {agent.name} are creating a new group.");
             }
             else
             {
-                Debug.Log($"{name} is joining a new group, which currently contains " + socialGroup.Count + " other agents. ");
+                //Debug.Log($"{name} is joining a new group, which currently contains " + socialGroup.Count + " other agents. ");
                 socialGroup.Add(this);
             }
             return true;
@@ -119,7 +125,7 @@ public class SocialBehaviour : VehicleBehaviour {
         if(socialGroup?.Count == 1)
         {
             var lonerInGroup = socialGroup[0];
-            Debug.Log("Destroying the group, since there is only one person left.");
+            //Debug.Log("Destroying the group, since there is only one person left.");
             lonerInGroup.socialGroup = null;
             socialGroup = null;
         }

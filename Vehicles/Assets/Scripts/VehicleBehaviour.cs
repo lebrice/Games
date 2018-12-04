@@ -72,7 +72,7 @@ public class VehicleBehaviour : MonoBehaviour
     // Use this for initialization
     protected virtual void Start()
     {
-        Debug.Log("Agent '" + name + "' Starting at position" + transform.position + " My role is: " + role.ToString());
+        //Debug.Log("Agent '" + name + "' Starting at position" + transform.position + " My role is: " + role.ToString());
     }
 
     protected void SetColor(Color color)
@@ -201,7 +201,7 @@ public class VehicleBehaviour : MonoBehaviour
 
     private void UpdateLineOfSightLength()
     {
-        sightLength = Mathf.Max(3, rigidBody.velocity.magnitude);
+        sightLength = Mathf.Max(2.0f, rigidBody.velocity.magnitude);
         sightLength = Mathf.FloorToInt(sightLength);
         // only update when the value actually changes.
         if (boxCollider.offset.x != sightLength)
